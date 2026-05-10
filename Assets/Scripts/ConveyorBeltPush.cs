@@ -1,42 +1,30 @@
 using UnityEngine;
 
+/// <summary>
+/// Conveyor belt that pushes objects using surface contact detection.
+/// Attach to belt mesh with BoxCollider. Objects with Rigidbody touching
+/// the belt will be continuously pushed in worldPushDirection.
+/// </summary>
 public class ConveyorBeltPush : MonoBehaviour
 {
-    [Header("Settings")]
-    [SerializeField] private float beltSpeed = 2f;
-    
-    [Header("Direction Settings")]
-    [Tooltip("Kutularin gitmesini istediginiz yon.")]
-    public Vector3 pushDirection = new Vector3(0, 0, -1);
-    
-    [Tooltip("True ise objenin kendi yonunu (Local), False ise dunya yonunu (Global) kullanir.")]
-    public bool useLocalDirection = false;
+    [Header("Conveyor Settings")]
+    [Tooltip("Speed of the conveyor belt in m/s")]
+    public float speed = 2.0f;
 
-    private void OnCollisionStay(Collision collision)
+    [Tooltip("Push direction in WORLD space")]
+    public Vector3 worldPushDirection = new Vector3(0, 0, -1);
+
+    void OnCollisionStay(Collision collision)
     {
         Rigidbody rb = collision.rigidbody;
-        if (rb != null && !rb.isKinematic)
-        {
-            if (pushDirection == Vector3.zero) return;
+        if (rb == null || rb.isKinematic) return;
 
-            Vector3 finalDirection = useLocalDirection ? transform.TransformDirection(pushDirection.normalized) : pushDirection.normalized;
-            
-            Vector3 targetVelocity = finalDirection * beltSpeed;
-            Vector3 velocityChange = targetVelocity - rb.linearVelocity;
-            
-            velocityChange.y = 0;
-            
-            rb.AddForce(velocityChange, ForceMode.VelocityChange);
-        }
-    }
+        // Unlock constraints
+        rb.constraints = RigidbodyConstraints.FreezeRotation;
 
-    private void OnDrawGizmos()
-    {
-        Gizmos.color = Color.blue;
-        if (pushDirection == Vector3.zero) return;
-        Vector3 finalDirection = useLocalDirection ? transform.TransformDirection(pushDirection.normalized) : pushDirection.normalized;
-        Vector3 start = transform.position + Vector3.up * 0.5f;
-        Gizmos.DrawRay(start, finalDirection * 1.5f);
-        Gizmos.DrawSphere(start + finalDirection * 1.5f, 0.1f);
+        // Use MovePosition for reliable movement that respects collisions
+        Vector3 dir = worldPushDirection.normalized;
+        Vector3 newPos = rb.position + dir * speed * Time.fixedDeltaTime;
+        rb.MovePosition(newPos);
     }
 }
