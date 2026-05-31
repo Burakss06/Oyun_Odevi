@@ -1,0 +1,320 @@
+using UnityEngine;
+using TMPro;
+using UnityEngine.UI;
+
+public class GameManager : MonoBehaviour
+{
+    public static GameManager Instance { get; private set; }
+
+    public enum GameState { Menu, DayBriefing, Playing, DayReport, GameOver }
+    public GameState CurrentState { get; private set; }
+
+    [Header("UI Panelleri")]
+    [SerializeField] private GameObject hudPanel;
+    [SerializeField] private GameObject briefingPanel;
+    [SerializeField] private GameObject reportPanel;
+    [SerializeField] private GameObject gameOverPanel;
+
+    [Header("HUD Elemanları")]
+    [SerializeField] private TextMeshProUGUI dayText;
+    [SerializeField] private TextMeshProUGUI timerText;
+    [SerializeField] private TextMeshProUGUI scoreText;
+    [SerializeField] private TextMeshProUGUI errorText;
+
+    [Header("Briefing (Bilgilendirme) Elemanları")]
+    [SerializeField] private TextMeshProUGUI briefingTitleText;
+    [SerializeField] private TextMeshProUGUI briefingContentText;
+    [SerializeField] private Button startDayButton;
+
+    [Header("Report (Gün Sonu Raporu) Elemanları")]
+    [SerializeField] private TextMeshProUGUI reportTitleText;
+    [SerializeField] private TextMeshProUGUI reportStatsText;
+    [SerializeField] private Button nextDayButton;
+    [SerializeField] private Button retryDayButton;
+
+    [Header("Oyun Sonu Elemanları")]
+    [SerializeField] private TextMeshProUGUI gameOverText;
+    [SerializeField] private Button restartGameButton;
+
+    [Header("İstatistikler")]
+    public int Score { get; private set; }
+    public int Errors { get; private set; }
+    public int TotalSpawnedBoxes { get; private set; }
+    public int TotalProcessedBoxes { get; private set; }
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    private void Start()
+    {
+        // Buton dinleyicilerini tanımla
+        if (startDayButton != null) startDayButton.onClick.AddListener(StartActiveDay);
+        if (nextDayButton != null) nextDayButton.onClick.AddListener(ProceedToNextDay);
+        if (retryDayButton != null) retryDayButton.onClick.AddListener(RestartCurrentDay);
+        if (restartGameButton != null) restartGameButton.onClick.AddListener(ResetWholeGame);
+
+        // Oyunu başlat
+        InitializeGame();
+    }
+
+    private void InitializeGame()
+    {
+        Score = 0;
+        Errors = 0;
+        TotalSpawnedBoxes = 0;
+        TotalProcessedBoxes = 0;
+
+        // DayManager'ı sıfırla
+        if (DayManager.Instance != null)
+        {
+            DayManager.Instance.ResetProgress();
+        }
+
+        ShowBriefing();
+    }
+
+    public void ShowBriefing()
+    {
+        CurrentState = GameState.DayBriefing;
+        Time.timeScale = 0f; // Zamanı durdur
+
+        hudPanel.SetActive(false);
+        briefingPanel.SetActive(true);
+        reportPanel.SetActive(false);
+        gameOverPanel.SetActive(false);
+
+        // Cursor kilidini aç
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        if (DayManager.Instance != null)
+        {
+            DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+            briefingTitleText.text = $"{config.dayNumber}. GÜN";
+            
+            string rulesText = "Bugünkü Kurallar:\n";
+            if (config.allowDamagedDefect) rulesText += "- Ezik/Kırık (Hasarlı) kutuları ayıkla!\n";
+            if (config.allowWrongColorDefect) rulesText += "- Yanlış renkle boyanmış kutuları ayıkla!\n";
+            if (config.allowSizeAnomalyDefect) rulesText += "- Boyutu standart dışı olan kutuları ayıkla!\n";
+            if (!config.allowDamagedDefect && !config.allowWrongColorDefect && !config.allowSizeAnomalyDefect)
+            {
+                rulesText += "- Tüm kutular sağlam, sadece gözlem yap.\n";
+            }
+
+            briefingContentText.text = $"Hedef: Toplam {config.totalBoxesToSpawn} kutunun kontrolünü yap.\n" +
+                                       $"Hata Limiti: Maksimum {config.allowedErrors} hata yapma hakkın var.\n" +
+                                       $"Süre: {config.dayDuration} saniye.\n\n" +
+                                       rulesText;
+        }
+    }
+
+    private void StartActiveDay()
+    {
+        CurrentState = GameState.Playing;
+        Time.timeScale = 1f; // Zamanı başlat
+
+        hudPanel.SetActive(true);
+        briefingPanel.SetActive(false);
+        reportPanel.SetActive(false);
+        gameOverPanel.SetActive(false);
+
+        // FPS kontrolü için imleci gizle ve kilitle
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        // Sahnedeki tüm eski kutuları (başlangıçtaki veya önceki günden kalanlar) temizle
+        GameObject[] allGameObjects = FindObjectsOfType<GameObject>();
+        foreach (GameObject obj in allGameObjects)
+        {
+            if (obj != null && obj.name.StartsWith("Cardboard Box"))
+            {
+                Destroy(obj);
+            }
+        }
+
+        // Oyuncuyu başlangıç konumuna sıfırla
+        PlayerController player = FindObjectOfType<PlayerController>();
+        if (player != null)
+        {
+            player.ResetToStartPosition();
+        }
+
+        // İstatistikleri temizle
+        Score = 0;
+        Errors = 0;
+        TotalSpawnedBoxes = 0;
+        TotalProcessedBoxes = 0;
+
+        UpdateHUD();
+
+        if (DayManager.Instance != null)
+        {
+            DayManager.Instance.StartDayTimer();
+        }
+
+        if (BoxSpawner.Instance != null)
+        {
+            BoxSpawner.Instance.StartSpawning();
+        }
+    }
+
+    public void RegisterBoxSpawn()
+    {
+        TotalSpawnedBoxes++;
+    }
+
+    public void AddCorrectChoice()
+    {
+        Score++;
+        TotalProcessedBoxes++;
+        UpdateHUD();
+        CheckDayCompletion();
+    }
+
+    public void AddIncorrectChoice()
+    {
+        Errors++;
+        TotalProcessedBoxes++;
+        UpdateHUD();
+
+        DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+        if (Errors > config.allowedErrors)
+        {
+            TriggerGameOver("Hata limitini aştın!");
+        }
+        else
+        {
+            CheckDayCompletion();
+        }
+    }
+
+    public void BoxMissed()
+    {
+        TotalProcessedBoxes++;
+        CheckDayCompletion();
+    }
+
+    private void UpdateHUD()
+    {
+        if (DayManager.Instance != null)
+        {
+            dayText.text = $"Gün: {DayManager.Instance.CurrentDay}";
+        }
+        scoreText.text = $"Doğru: {Score}";
+        
+        if (DayManager.Instance != null)
+        {
+            DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+            errorText.text = $"Hata: {Errors}/{config.allowedErrors}";
+        }
+        else
+        {
+            errorText.text = $"Hata: {Errors}";
+        }
+    }
+
+    public void UpdateTimerDisplay(float timeLeft)
+    {
+        int minutes = Mathf.FloorToInt(timeLeft / 60f);
+        int seconds = Mathf.FloorToInt(timeLeft % 60f);
+        timerText.text = string.Format("Süre: {0:00}:{1:00}", minutes, seconds);
+    }
+
+    public void CheckDayCompletion()
+    {
+        if (DayManager.Instance == null) return;
+
+        DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+        // Eğer gün içindeki tüm kutular üretildi ve hepsi işlendiyse gün biter
+        if (TotalProcessedBoxes >= config.totalBoxesToSpawn)
+        {
+            EndDay(false);
+        }
+    }
+
+    public void EndDay(bool wasTimeUp)
+    {
+        CurrentState = GameState.DayReport;
+        Time.timeScale = 0f; // Oyunu durdur
+
+        hudPanel.SetActive(false);
+        briefingPanel.SetActive(false);
+        reportPanel.SetActive(true);
+        gameOverPanel.SetActive(false);
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        if (BoxSpawner.Instance != null)
+        {
+            BoxSpawner.Instance.StopSpawning();
+        }
+
+        DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+        
+        // Başarı koşulu: Süre bitmemiş olmalı (wasTimeUp == false) VE hatalar izin verilen sınırda olmalı
+        bool isSuccess = !wasTimeUp && (Errors <= config.allowedErrors);
+        
+        reportTitleText.text = isSuccess ? "GÜN TAMAMLANDI" : "GÜN BAŞARISIZ";
+        reportTitleText.color = isSuccess ? Color.green : Color.red;
+
+        reportStatsText.text = $"Toplam Üretilen Kutu: {TotalSpawnedBoxes}\n" +
+                               $"Kontrol Edilen: {TotalProcessedBoxes}\n" +
+                               $"Doğru Ayrıştırma: {Score}\n" +
+                               $"Yapılan Hata: {Errors}/{config.allowedErrors}\n\n" +
+                               (isSuccess ? "Tebrikler, sonraki güne geçmeye hak kazandın!" : (wasTimeUp ? "Zaman sınırına ulaştın ve günü yetiştiremedin." : "Hata sınırını aşmıştın veya hedeflere ulaşamadın."));
+
+        nextDayButton.gameObject.SetActive(isSuccess);
+        retryDayButton.gameObject.SetActive(!isSuccess);
+    }
+
+    public void TriggerGameOver(string reason)
+    {
+        CurrentState = GameState.GameOver;
+        Time.timeScale = 0f;
+
+        hudPanel.SetActive(false);
+        briefingPanel.SetActive(false);
+        reportPanel.SetActive(false);
+        gameOverPanel.SetActive(true);
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        if (BoxSpawner.Instance != null)
+        {
+            BoxSpawner.Instance.StopSpawning();
+        }
+
+        gameOverText.text = $"OYUN BİTTİ\n\nSebep: {reason}\n\nToplam Başarı: {DayManager.Instance.CurrentDay}. güne kadar gelebildin.";
+    }
+
+    private void ProceedToNextDay()
+    {
+        if (DayManager.Instance != null)
+        {
+            DayManager.Instance.IncrementDay();
+            ShowBriefing();
+        }
+    }
+
+    private void RestartCurrentDay()
+    {
+        ShowBriefing();
+    }
+
+    private void ResetWholeGame()
+    {
+        InitializeGame();
+    }
+}
