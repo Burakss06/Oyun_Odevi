@@ -42,6 +42,8 @@ public class GameManager : MonoBehaviour
     public int TotalSpawnedBoxes { get; private set; }
     public int TotalProcessedBoxes { get; private set; }
 
+    public System.Collections.Generic.Dictionary<BoxController.BoxShape, PalletTrigger.PalletType> DailyRules { get; private set; }
+
     private void Awake()
     {
         if (Instance == null)
@@ -52,6 +54,52 @@ public class GameManager : MonoBehaviour
         else
         {
             Destroy(gameObject);
+        }
+    }
+
+    public void RollDailyRules()
+    {
+        DailyRules = new System.Collections.Generic.Dictionary<BoxController.BoxShape, PalletTrigger.PalletType>();
+        
+        if (DayManager.Instance == null) return;
+
+        int currentDay = DayManager.Instance.CurrentDay;
+        
+        // 1. Gün kuralları sabit: Kapalı -> Kabul, Açık -> Ret
+        if (currentDay == 1)
+        {
+            DailyRules[BoxController.BoxShape.Closed] = PalletTrigger.PalletType.Kabul;
+            DailyRules[BoxController.BoxShape.Opened] = PalletTrigger.PalletType.Ret;
+            return;
+        }
+
+        // 2. Gün ve sonrasında kutu kuralları rastgele belirlenecek (zar atma)
+        // Kural: En az 1 tanesi Kabul, en az 1 tanesi Ret olacak.
+        bool validRoll = false;
+        while (!validRoll)
+        {
+            int kabulCount = 0;
+            int retCount = 0;
+
+            // Closed
+            var closedPallet = (Random.value > 0.5f) ? PalletTrigger.PalletType.Kabul : PalletTrigger.PalletType.Ret;
+            if (closedPallet == PalletTrigger.PalletType.Kabul) kabulCount++; else retCount++;
+
+            // Opened
+            var openedPallet = (Random.value > 0.5f) ? PalletTrigger.PalletType.Kabul : PalletTrigger.PalletType.Ret;
+            if (openedPallet == PalletTrigger.PalletType.Kabul) kabulCount++; else retCount++;
+
+            // Unfolded
+            var unfoldedPallet = (Random.value > 0.5f) ? PalletTrigger.PalletType.Kabul : PalletTrigger.PalletType.Ret;
+            if (unfoldedPallet == PalletTrigger.PalletType.Kabul) kabulCount++; else retCount++;
+
+            if (kabulCount > 0 && retCount > 0)
+            {
+                DailyRules[BoxController.BoxShape.Closed] = closedPallet;
+                DailyRules[BoxController.BoxShape.Opened] = openedPallet;
+                DailyRules[BoxController.BoxShape.Unfolded] = unfoldedPallet;
+                validRoll = true;
+            }
         }
     }
 
@@ -99,16 +147,46 @@ public class GameManager : MonoBehaviour
 
         if (DayManager.Instance != null)
         {
+            // O günün kurallarını zar atarak belirle!
+            RollDailyRules();
+
             DayConfig config = DayManager.Instance.GetCurrentDayConfig();
             briefingTitleText.text = $"{config.dayNumber}. GÜN";
             
             string rulesText = "Bugünkü Kurallar:\n";
-            if (config.allowDamagedDefect) rulesText += "- Ezik/Kırık (Hasarlı) kutuları ayıkla!\n";
-            if (config.allowWrongColorDefect) rulesText += "- Yanlış renkle boyanmış kutuları ayıkla!\n";
-            if (config.allowSizeAnomalyDefect) rulesText += "- Boyutu standart dışı olan kutuları ayıkla!\n";
-            if (!config.allowDamagedDefect && !config.allowWrongColorDefect && !config.allowSizeAnomalyDefect)
+            if (config.dayNumber == 1)
             {
-                rulesText += "- Tüm kutular sağlam, sadece gözlem yap.\n";
+                // Sabit kurallar
+                rulesText += "- Kapalı kutuları KABUL paletine yerleştir.\n";
+                rulesText += "- Açık (kanatlı) kutuları RET paletine yerleştir.\n";
+            }
+            else
+            {
+                // Rastgele seçilen kurallara göre madde madde yazdır
+                foreach (var rule in DailyRules)
+                {
+                    string shapeName = "";
+                    if (rule.Key == BoxController.BoxShape.Closed) shapeName = "Kapalı";
+                    else if (rule.Key == BoxController.BoxShape.Opened) shapeName = "Açık (kanatlı)";
+                    else if (rule.Key == BoxController.BoxShape.Unfolded) shapeName = "Düz (unfolded) karton";
+
+                    string palletName = (rule.Value == PalletTrigger.PalletType.Kabul) ? "KABUL" : "RET";
+                    rulesText += $"- {shapeName} kutuları {palletName} paletine yerleştir.\n";
+                }
+            }
+
+            // Ekstra fiziksel hataları ve sürpriz kutuyu ekle
+            if (config.allowWrongColorDefect)
+            {
+                rulesText += "- Kırmızı boyalı hatalı kutuları RET paletine yerleştir.\n";
+            }
+            if (config.allowSizeAnomalyDefect)
+            {
+                rulesText += "- Boyut hatası (çok küçük/büyük) olan kutuları RET paletine yerleştir.\n";
+            }
+            if (config.dayNumber == 5)
+            {
+                rulesText += "- SÜRPRİZ KUTU UYARISI: Mor renkli Sürpriz Kutular gelebilir! Nereye koyarsan koy %50 şansla doğru veya yanlış sayılacaktır.\n";
             }
 
             briefingContentText.text = $"Hedef: Toplam {config.totalBoxesToSpawn} kutunun kontrolünü yap.\n" +
@@ -265,6 +343,12 @@ public class GameManager : MonoBehaviour
         // Başarı koşulu: Süre bitmemiş olmalı (wasTimeUp == false) VE hatalar izin verilen sınırda olmalı
         bool isSuccess = !wasTimeUp && (Errors <= config.allowedErrors);
         
+        if (isSuccess && config.dayNumber == 5)
+        {
+            TriggerGameWin();
+            return;
+        }
+        
         reportTitleText.text = isSuccess ? "GÜN TAMAMLANDI" : "GÜN BAŞARISIZ";
         reportTitleText.color = isSuccess ? Color.green : Color.red;
 
@@ -276,6 +360,29 @@ public class GameManager : MonoBehaviour
 
         nextDayButton.gameObject.SetActive(isSuccess);
         retryDayButton.gameObject.SetActive(!isSuccess);
+    }
+
+    public void TriggerGameWin()
+    {
+        CurrentState = GameState.GameOver;
+        Time.timeScale = 0f;
+
+        hudPanel.SetActive(false);
+        briefingPanel.SetActive(false);
+        reportPanel.SetActive(false);
+        gameOverPanel.SetActive(true);
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        if (BoxSpawner.Instance != null)
+        {
+            BoxSpawner.Instance.StopSpawning();
+        }
+
+        // Metin rengini YEŞİL yap
+        gameOverText.color = Color.green;
+        gameOverText.text = $"TEBRİKLER! OYUNU KAZANDINIZ\n\n5 günlük fabrika kalite kontrol vardiyasını başarıyla tamamladın ve usta bir fabrika işçisi olduğunu kanıtladın!\n\nToplam Doğru: {Score}\nYaptığın Toplam Hata: {Errors}\n\nYeniden başlamak için aşağıdaki butonu kullanabilirsin.";
     }
 
     public void TriggerGameOver(string reason)
@@ -296,6 +403,8 @@ public class GameManager : MonoBehaviour
             BoxSpawner.Instance.StopSpawning();
         }
 
+        // Metin rengini KIRMIZI yap
+        gameOverText.color = Color.red;
         gameOverText.text = $"OYUN BİTTİ\n\nSebep: {reason}\n\nToplam Başarı: {DayManager.Instance.CurrentDay}. güne kadar gelebildin.";
     }
 

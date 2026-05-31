@@ -92,8 +92,13 @@ public class BoxSpawner : MonoBehaviour
             selectedSpawnPoint = transform;
         }
 
-        // Rastgele bir prefab seç
-        int randomIndex = Random.Range(0, boxPrefabs.Count);
+        // Rastgele bir prefab seç (Güne göre sınırla: 1. gün sadece Kapalı ve Açık kutu)
+        int maxPrefabIndex = boxPrefabs.Count;
+        if (DayManager.Instance != null && DayManager.Instance.CurrentDay == 1)
+        {
+            maxPrefabIndex = 2; // 0 ve 1. index (Closed ve Opened)
+        }
+        int randomIndex = Random.Range(0, maxPrefabIndex);
         GameObject selectedPrefab = boxPrefabs[randomIndex];
 
         // Kutuyu oluştur
@@ -108,6 +113,37 @@ public class BoxSpawner : MonoBehaviour
         if (boxController == null)
         {
             boxController = spawnedBox.AddComponent<BoxController>();
+        }
+
+        // Kutu şeklini (Shape) prefab ismine göre belirle
+        if (selectedPrefab.name.Contains("Opened"))
+        {
+            boxController.Shape = BoxController.BoxShape.Opened;
+        }
+        else if (selectedPrefab.name.Contains("Unfolded"))
+        {
+            boxController.Shape = BoxController.BoxShape.Unfolded;
+        }
+        else
+        {
+            boxController.Shape = BoxController.BoxShape.Closed;
+            
+            // 5. Gün ve Kapalı kutu ise %25 şansla Sürpriz Kutu (Mystery Box) yap
+            if (DayManager.Instance != null && DayManager.Instance.CurrentDay == 5)
+            {
+                if (Random.value <= 0.25f)
+                {
+                    boxController.isMysteryBox = true;
+                    // Rengini belirgin bir mor (magenta) yapalım
+                    Renderer[] renderers = spawnedBox.GetComponentsInChildren<Renderer>();
+                    foreach (Renderer ren in renderers)
+                    {
+                        if (ren is LineRenderer) continue;
+                        ren.material.color = Color.magenta;
+                    }
+                    spawnedBox.name = "Cardboard Box (Mystery)_" + System.Guid.NewGuid().ToString().Substring(0, 5);
+                }
+            }
         }
 
         // Kutuyu o günün kurallarına göre kur

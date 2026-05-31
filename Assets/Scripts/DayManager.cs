@@ -47,7 +47,7 @@ public class DayManager : MonoBehaviour
         // Eğer inspector'dan atanmamışsa varsayılan günleri oluştur
         if (dayConfigs.Count == 0)
         {
-            // 1. Gün: Sadece ezik/hasarlı kutuları ayıkla
+            // 1. Gün: Sadece Kapalı ve Açık kutular. Hasarlı ve diğer kusurlar kapalı.
             dayConfigs.Add(new DayConfig
             {
                 dayNumber = 1,
@@ -55,12 +55,12 @@ public class DayManager : MonoBehaviour
                 defectSpawnChance = 0.35f,
                 allowedErrors = 3,
                 dayDuration = 90f,
-                allowDamagedDefect = true,
+                allowDamagedDefect = false,
                 allowWrongColorDefect = false,
                 allowSizeAnomalyDefect = false
             });
 
-            // 2. Gün: Hem ezik hem yanlış renkli kutuları ayıkla
+            // 2. Gün: Kapalı, Açık ve Düz kutular. Hasarlı ve diğer kusurlar kapalı.
             dayConfigs.Add(new DayConfig
             {
                 dayNumber = 2,
@@ -68,20 +68,46 @@ public class DayManager : MonoBehaviour
                 defectSpawnChance = 0.4f,
                 allowedErrors = 2,
                 dayDuration = 120f,
-                allowDamagedDefect = true,
+                allowDamagedDefect = false,
+                allowWrongColorDefect = false,
+                allowSizeAnomalyDefect = false
+            });
+
+            // 3. Gün: Kapalı, Açık, Düz ve Yanlış Renkli kutular. Hasarlı ve boyut kapalı.
+            dayConfigs.Add(new DayConfig
+            {
+                dayNumber = 3,
+                totalBoxesToSpawn = 18,
+                defectSpawnChance = 0.45f,
+                allowedErrors = 2,
+                dayDuration = 140f,
+                allowDamagedDefect = false,
                 allowWrongColorDefect = true,
                 allowSizeAnomalyDefect = false
             });
 
-            // 3. Gün: Ezik, yanlış renk ve boyut hatası içeren kutuları ayıkla
+            // 4. Gün: Kapalı, Açık, Düz, Yanlış Renkli ve Boyut anomalili kutular. Hasarlı kapalı.
             dayConfigs.Add(new DayConfig
             {
-                dayNumber = 3,
-                totalBoxesToSpawn = 20,
-                defectSpawnChance = 0.45f,
+                dayNumber = 4,
+                totalBoxesToSpawn = 22,
+                defectSpawnChance = 0.5f,
                 allowedErrors = 2,
-                dayDuration = 150f,
-                allowDamagedDefect = true,
+                dayDuration = 160f,
+                allowDamagedDefect = false,
+                allowWrongColorDefect = true,
+                allowSizeAnomalyDefect = true
+            });
+
+            // 5. Gün (Final): Kapalı, Açık, Düz, Yanlış Renkli, Boyut anomalili ve Sürpriz kutular. Hasarlı kapalı.
+            dayConfigs.Add(new DayConfig
+            {
+                dayNumber = 5,
+                totalBoxesToSpawn = 25,
+                defectSpawnChance = 0.5f,
+                allowedErrors = 2,
+                dayDuration = 180f,
+                allowDamagedDefect = false,
                 allowWrongColorDefect = true,
                 allowSizeAnomalyDefect = true
             });

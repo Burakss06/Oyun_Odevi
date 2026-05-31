@@ -37,34 +37,58 @@ public class PalletTrigger : MonoBehaviour
         box.MarkAsEvaluated();
 
         bool isCorrect = false;
-        bool isDefective = box.IsDefective;
 
-        if (palletType == PalletType.Kabul)
+        if (box.isMysteryBox)
         {
-            // Kabul Paleti: Sadece sağlam (defosuz) kutular buraya konulmalı
-            if (!isDefective)
-            {
-                isCorrect = true;
-                Debug.Log("DOĞRU KARAR: Sağlam kutu kabul paletine bırakıldı.");
-            }
-            else
-            {
-                isCorrect = false;
-                Debug.Log($"HATALI KARAR: Kusurlu kutu ({box.CurrentDefect}) kabul paletine bırakıldı!");
-            }
+            // Sürpriz kutu: %50 şansla doğru veya yanlış
+            isCorrect = (Random.value > 0.5f);
+            Debug.Log($"SÜRPRİZ KUTU DEĞERLENDİRİLDİ: Sonuç şans eseri {(isCorrect ? "DOĞRU" : "HATALI")} çıktı.");
         }
-        else if (palletType == PalletType.Ret)
+        else
         {
-            // Ret Paleti: Sadece defolu (kusurlu) kutular buraya konulmalı
-            if (isDefective)
+            // Aktif fiziksel kusurları kontrol et (Renk ve Boyut hataları her zaman Ret paletine gitmelidir)
+            bool hasActiveDefect = false;
+            if (DayManager.Instance != null && box.CurrentDefect != BoxController.DefectType.None)
             {
-                isCorrect = true;
-                Debug.Log($"DOĞRU KARAR: Kusurlu kutu ({box.CurrentDefect}) ret paletine bırakıldı.");
+                DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+                if (config.allowWrongColorDefect && box.CurrentDefect == BoxController.DefectType.WrongColor) hasActiveDefect = true;
+                if (config.allowSizeAnomalyDefect && box.CurrentDefect == BoxController.DefectType.SizeAnomaly) hasActiveDefect = true;
+            }
+
+            if (hasActiveDefect)
+            {
+                // Fiziksel kusuru olan kutular her zaman RET paletine yerleştirilmelidir
+                isCorrect = (palletType == PalletType.Ret);
+                if (isCorrect)
+                    Debug.Log($"DOĞRU KARAR: Kusurlu kutu ({box.CurrentDefect}) ret paletine bırakıldı.");
+                else
+                    Debug.Log($"HATALI KARAR: Kusurlu kutu ({box.CurrentDefect}) kabul paletine bırakıldı!");
             }
             else
             {
-                isCorrect = false;
-                Debug.Log("HATALI KARAR: Sağlam kutu ret paletine bırakıldı!");
+                // Normal kutular için gün kurallarını kontrol et
+                if (GameManager.Instance != null && GameManager.Instance.DailyRules != null && 
+                    GameManager.Instance.DailyRules.TryGetValue(box.Shape, out var targetPallet))
+                {
+                    isCorrect = (palletType == targetPallet);
+                    if (isCorrect)
+                        Debug.Log($"DOĞRU KARAR: {box.Shape} kutu doğru palete ({palletType}) bırakıldı.");
+                    else
+                        Debug.Log($"HATALI KARAR: {box.Shape} kutu yanlış palete ({palletType}) bırakıldı! Hedef: {targetPallet}");
+                }
+                else
+                {
+                    // Varsayılan kontrol
+                    bool isDefective = box.IsDefective;
+                    if (palletType == PalletType.Kabul)
+                    {
+                        isCorrect = !isDefective;
+                    }
+                    else
+                    {
+                        isCorrect = isDefective;
+                    }
+                }
             }
         }
 

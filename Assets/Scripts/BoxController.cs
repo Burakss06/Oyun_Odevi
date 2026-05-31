@@ -3,6 +3,13 @@ using System.Collections.Generic;
 
 public class BoxController : MonoBehaviour
 {
+    public enum BoxShape
+    {
+        Closed,
+        Opened,
+        Unfolded
+    }
+
     public enum DefectType
     {
         None,          // Sağlam (Kusursuz)
@@ -14,7 +21,42 @@ public class BoxController : MonoBehaviour
     [Header("Kusur Bilgisi")]
     [SerializeField] private DefectType currentDefect = DefectType.None;
     public DefectType CurrentDefect => currentDefect;
-    public bool IsDefective => currentDefect != DefectType.None;
+    
+    public BoxShape Shape { get; set; } = BoxShape.Closed;
+    public bool isMysteryBox = false;
+
+    public bool IsDefective
+    {
+        get
+        {
+            // Eğer oyun kuralları atanmamışsa varsayılan
+            if (GameManager.Instance == null || GameManager.Instance.DailyRules == null)
+            {
+                return currentDefect != DefectType.None;
+            }
+
+            // Sürpriz kutular banttan düşerse hata sayılmasın, oyuncu palete koyup şansını denemelidir
+            if (isMysteryBox) return false;
+
+            // Kutu şekli kurala göre Ret'e mi gitmeli?
+            bool shouldGoToRetByShape = false;
+            if (GameManager.Instance.DailyRules.TryGetValue(Shape, out var targetPallet))
+            {
+                shouldGoToRetByShape = (targetPallet == PalletTrigger.PalletType.Ret);
+            }
+
+            // Aktif renk ve boyut hataları da her zaman Ret'e gitmelidir
+            bool hasActiveDefect = false;
+            if (DayManager.Instance != null)
+            {
+                DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+                if (config.allowWrongColorDefect && currentDefect == DefectType.WrongColor) hasActiveDefect = true;
+                if (config.allowSizeAnomalyDefect && currentDefect == DefectType.SizeAnomaly) hasActiveDefect = true;
+            }
+
+            return shouldGoToRetByShape || hasActiveDefect;
+        }
+    }
 
     [Header("Görsel Efekt Ayarları")]
     [SerializeField] private Color wrongColorTint = new Color(0.9f, 0.1f, 0.1f); // Yanlış renk için kırmızı tonu
@@ -102,8 +144,9 @@ public class BoxController : MonoBehaviour
 
             case DefectType.SizeAnomaly:
                 // Boyut Hatası Görünümü:
-                // Kutu ya çok küçük ya da çok büyük olmalı (%50 ihtimal)
-                float scaleMultiplier = (Random.value > 0.5f) ? 0.62f : 1.48f;
+                // Kutu ya çok küçük (0.70x) ya da çok büyük (1.22x) olmalı (%50 ihtimal)
+                // Bu sayede cam tünelden dışarı taşmaz ve bantta takılmaz.
+                float scaleMultiplier = (Random.value > 0.5f) ? 0.70f : 1.22f;
                 transform.localScale = originalScale * scaleMultiplier;
                 
                 // Rigidbody kütlesini boyutuna göre güncelle
