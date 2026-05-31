@@ -5,6 +5,7 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Movement Settings")]
     [SerializeField] private float walkSpeed = 5.0f;
+    [SerializeField] private float runSpeed = 8.5f;
     [SerializeField] private float gravity = -9.81f;
 
     [Header("Look Settings")]
@@ -96,8 +97,14 @@ public class PlayerController : MonoBehaviour
             if (Keyboard.current.dKey.isPressed) input.x += 1;
         }
 
+        float currentSpeed = walkSpeed;
+        if (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed)
+        {
+            currentSpeed = runSpeed;
+        }
+
         Vector3 move = transform.right * input.x + transform.forward * input.y;
-        controller.Move(move * walkSpeed * Time.deltaTime);
+        controller.Move(move * currentSpeed * Time.deltaTime);
 
         // Gravity
         velocity.y += gravity * Time.deltaTime;
