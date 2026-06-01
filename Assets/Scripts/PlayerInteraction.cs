@@ -174,4 +174,15 @@ public class PlayerInteraction : MonoBehaviour
             heldRigidbody = null;
         }
     }
+
+    public void ResetInteraction()
+    {
+        heldObject = null;
+        heldRigidbody = null;
+        if (outlineLine != null)
+        {
+            outlineLine.enabled = false;
+        }
+        lastTarget = null;
+    }
 }

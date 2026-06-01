@@ -17,19 +17,66 @@ public class PlayerController : MonoBehaviour
     private Vector3 velocity;
     private float xRotation = 0f;
 
+    private Vector3 startPosition;
+    private Quaternion startRotation;
+
+    void Awake()
+    {
+        startPosition = transform.position;
+        startRotation = transform.rotation;
+    }
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
         
-        // Lock and hide cursor
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        // Başlangıç durumuna göre imleci ayarla
+        UpdateCursorState();
     }
 
     void Update()
     {
+        // Eğer oyun oynanış modunda değilse (Menü, Briefing veya Rapor açıkken)
+        // oyuncu hareketini ve kamerayı kilitle, imleci serbest bırak.
+        if (GameManager.Instance != null && GameManager.Instance.CurrentState != GameManager.GameState.Playing)
+        {
+            if (Cursor.lockState != CursorLockMode.None)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+            return;
+        }
+
+        // Oyun oynanış modundaysa ve imleç yanlışlıkla serbest kaldıysa kilitle
+        if (Cursor.lockState != CursorLockMode.Locked)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        // Harita dışına düşme kontrolü (Y < -10f ise başlangıç noktasına ışınla)
+        if (transform.position.y < -10f)
+        {
+            ResetToStartPosition();
+        }
+
         HandleMovement();
         HandleLook();
+    }
+
+    private void UpdateCursorState()
+    {
+        if (GameManager.Instance != null && GameManager.Instance.CurrentState == GameManager.GameState.Playing)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
     }
 
     private void HandleMovement()
@@ -76,5 +123,35 @@ public class PlayerController : MonoBehaviour
 
         // Horizontal look (Player Body)
         transform.Rotate(Vector3.up * mouseX);
+    }
+
+    public void ResetToStartPosition()
+    {
+        if (controller != null)
+        {
+            controller.enabled = false;
+        }
+
+        transform.position = startPosition;
+        transform.rotation = startRotation;
+        
+        xRotation = 0f;
+        if (playerCamera != null)
+        {
+            playerCamera.localRotation = Quaternion.identity;
+        }
+
+        velocity = Vector3.zero;
+
+        if (controller != null)
+        {
+            controller.enabled = true;
+        }
+
+        PlayerInteraction interaction = GetComponent<PlayerInteraction>();
+        if (interaction != null)
+        {
+            interaction.ResetInteraction();
+        }
     }
 }
