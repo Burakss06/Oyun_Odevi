@@ -19,6 +19,45 @@ public class PlayerInteraction : MonoBehaviour
     private GameObject lastTarget;
     private LineRenderer outlineLine;
 
+    [Header("Ses Efektleri")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip grabSound;
+    [SerializeField] private AudioClip putSound;
+
+    private void Awake()
+    {
+        InitializeAudio();
+    }
+
+    private void InitializeAudio()
+    {
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+        }
+
+        if (grabSound == null)
+        {
+            grabSound = Resources.Load<AudioClip>("Audio/grab_item");
+        }
+        if (putSound == null)
+        {
+            putSound = Resources.Load<AudioClip>("Audio/put_item");
+        }
+    }
+
+    private void PlaySound(AudioClip clip)
+    {
+        if (audioSource != null && clip != null)
+        {
+            audioSource.PlayOneShot(clip);
+        }
+    }
+
     void Start()
     {
         // Kusursuz kenar çizgileri için bir LineRenderer oluşturuyoruz
@@ -152,6 +191,8 @@ public class PlayerInteraction : MonoBehaviour
                 
                 outlineLine.enabled = false;
                 lastTarget = null;
+
+                PlaySound(grabSound);
             }
         }
     }
@@ -160,6 +201,8 @@ public class PlayerInteraction : MonoBehaviour
     {
         if (heldObject != null)
         {
+            PlaySound(putSound);
+
             if (heldRigidbody != null)
             {
                 heldRigidbody.isKinematic = false;
