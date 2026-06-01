@@ -36,6 +36,14 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI gameOverText;
     [SerializeField] private Button restartGameButton;
 
+    [Header("Ses Efektleri & Müzik")]
+    [SerializeField] private AudioSource musicSource;
+    [SerializeField] private AudioSource sfxSource;
+    [SerializeField] private AudioClip backgroundMusic;
+    [SerializeField] private AudioClip winMusic;
+    [SerializeField] private AudioClip loseMusic;
+    [SerializeField] private AudioClip wrongBuzzerSound;
+
     [Header("İstatistikler")]
     public int Score { get; private set; }
     public int Errors { get; private set; }
@@ -44,16 +52,75 @@ public class GameManager : MonoBehaviour
 
     public System.Collections.Generic.Dictionary<BoxController.BoxShape, PalletTrigger.PalletType> DailyRules { get; private set; }
 
+    private Button muteButton;
+    private bool isMuted = false;
+    private string originalStartButtonText = "Günü Başlat";
+    private Color originalStartButtonColor = Color.white;
+    private Vector2 originalStartButtonPosition;
+
     private void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            InitializeAudio();
         }
         else
         {
             Destroy(gameObject);
+        }
+    }
+
+    private void InitializeAudio()
+    {
+        if (musicSource == null)
+        {
+            var sources = GetComponents<AudioSource>();
+            if (sources.Length > 0)
+            {
+                musicSource = sources[0];
+            }
+            else
+            {
+                musicSource = gameObject.AddComponent<AudioSource>();
+            }
+        }
+
+        if (sfxSource == null)
+        {
+            var sources = GetComponents<AudioSource>();
+            if (sources.Length > 1)
+            {
+                sfxSource = sources[1];
+            }
+            else
+            {
+                sfxSource = gameObject.AddComponent<AudioSource>();
+            }
+        }
+
+        musicSource.mute = isMuted;
+        if (sfxSource != null)
+        {
+            sfxSource.mute = false; // Efekt sesi her zaman açık kalır!
+        }
+
+        if (backgroundMusic == null)
+        {
+            backgroundMusic = Resources.Load<AudioClip>("Audio/background");
+        }
+        if (winMusic == null)
+        {
+            winMusic = Resources.Load<AudioClip>("Audio/win");
+        }
+        if (loseMusic == null)
+        {
+            loseMusic = Resources.Load<AudioClip>("Audio/lose");
+        }
+        if (wrongBuzzerSound == null)
+        {
+            wrongBuzzerSound = Resources.Load<AudioClip>("Audio/wrong_buzzer");
         }
     }
 
@@ -105,8 +172,43 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        // Buton dinleyicilerini tanımla
-        if (startDayButton != null) startDayButton.onClick.AddListener(StartActiveDay);
+        // Orijinal buton metnini, rengini ve pozisyonunu al
+        if (startDayButton != null)
+        {
+            var tmp = startDayButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (tmp != null) originalStartButtonText = tmp.text;
+            else
+            {
+                var txt = startDayButton.GetComponentInChildren<Text>();
+                if (txt != null) originalStartButtonText = txt.text;
+            }
+
+            var startImg = startDayButton.GetComponent<Image>();
+            if (startImg != null)
+            {
+                originalStartButtonColor = startImg.color;
+            }
+
+            RectTransform startRect = startDayButton.GetComponent<RectTransform>();
+            if (startRect != null)
+            {
+                originalStartButtonPosition = startRect.anchoredPosition;
+            }
+
+            // Start butonu tıklama dinleyicisini bağla
+            startDayButton.onClick.AddListener(OnStartDayButtonClicked);
+
+            // Mute butonunu oluştur (StartDayButton'ı kopyalayarak)
+            muteButton = Instantiate(startDayButton, startDayButton.transform.parent);
+            muteButton.name = "MuteMusicButton";
+            
+            // Klon butonun dinleyicilerini sıfırla ve yeni dinleyici ekle
+            muteButton.onClick.RemoveAllListeners();
+            muteButton.onClick.AddListener(ToggleMute);
+
+            UpdateMuteButtonText();
+        }
+
         if (nextDayButton != null) nextDayButton.onClick.AddListener(ProceedToNextDay);
         if (retryDayButton != null) retryDayButton.onClick.AddListener(RestartCurrentDay);
         if (restartGameButton != null) restartGameButton.onClick.AddListener(ResetWholeGame);
@@ -128,11 +230,13 @@ public class GameManager : MonoBehaviour
             DayManager.Instance.ResetProgress();
         }
 
-        ShowBriefing();
+        ShowMenu();
     }
 
     public void ShowBriefing()
     {
+        StopMusic();
+
         CurrentState = GameState.DayBriefing;
         Time.timeScale = 0f; // Zamanı durdur
 
@@ -140,6 +244,28 @@ public class GameManager : MonoBehaviour
         briefingPanel.SetActive(true);
         reportPanel.SetActive(false);
         gameOverPanel.SetActive(false);
+
+        // Orijinal buton metnine, rengine ve pozisyonuna geri dön
+        UpdateButtonText(startDayButton, originalStartButtonText);
+        var startImg = startDayButton.GetComponent<Image>();
+        if (startImg != null)
+        {
+            startImg.color = originalStartButtonColor;
+        }
+        if (startDayButton.transform.parent.GetComponent<UnityEngine.UI.LayoutGroup>() == null)
+        {
+            RectTransform startRect = startDayButton.GetComponent<RectTransform>();
+            if (startRect != null)
+            {
+                startRect.anchoredPosition = originalStartButtonPosition;
+            }
+        }
+
+        // Mute butonunu diğer günlerin brifing ekranında gizleyelim
+        if (muteButton != null)
+        {
+            muteButton.gameObject.SetActive(false);
+        }
 
         // Cursor kilidini aç
         Cursor.lockState = CursorLockMode.None;
@@ -200,6 +326,14 @@ public class GameManager : MonoBehaviour
     {
         CurrentState = GameState.Playing;
         Time.timeScale = 1f; // Zamanı başlat
+
+        PlayBackgroundMusic();
+
+        // Oynanış esnasında mute butonunu gizle
+        if (muteButton != null)
+        {
+            muteButton.gameObject.SetActive(false);
+        }
 
         hudPanel.SetActive(true);
         briefingPanel.SetActive(false);
@@ -272,6 +406,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
+            PlayBuzzerSound();
             CheckDayCompletion();
         }
     }
@@ -322,6 +457,8 @@ public class GameManager : MonoBehaviour
 
     public void EndDay(bool wasTimeUp)
     {
+        StopMusic();
+
         CurrentState = GameState.DayReport;
         Time.timeScale = 0f; // Oyunu durdur
 
@@ -343,10 +480,17 @@ public class GameManager : MonoBehaviour
         // Başarı koşulu: Süre bitmemiş olmalı (wasTimeUp == false) VE hatalar izin verilen sınırda olmalı
         bool isSuccess = !wasTimeUp && (Errors <= config.allowedErrors);
         
-        if (isSuccess && config.dayNumber == 5)
+        if (isSuccess)
         {
-            TriggerGameWin();
-            return;
+            if (config.dayNumber == 5)
+            {
+                TriggerGameWin();
+                return;
+            }
+            else
+            {
+                PlayWinMusic();
+            }
         }
         
         reportTitleText.text = isSuccess ? "GÜN TAMAMLANDI" : "GÜN BAŞARISIZ";
@@ -364,6 +508,9 @@ public class GameManager : MonoBehaviour
 
     public void TriggerGameWin()
     {
+        StopMusic();
+        PlayWinMusic();
+
         CurrentState = GameState.GameOver;
         Time.timeScale = 0f;
 
@@ -387,6 +534,9 @@ public class GameManager : MonoBehaviour
 
     public void TriggerGameOver(string reason)
     {
+        StopMusic();
+        PlayBuzzerSound();
+
         CurrentState = GameState.GameOver;
         Time.timeScale = 0f;
 
@@ -406,6 +556,9 @@ public class GameManager : MonoBehaviour
         // Metin rengini KIRMIZI yap
         gameOverText.color = Color.red;
         gameOverText.text = $"OYUN BİTTİ\n\nSebep: {reason}\n\nToplam Başarı: {DayManager.Instance.CurrentDay}. güne kadar gelebildin.";
+
+        // Lose müziğini gecikmeli başlat
+        StartCoroutine(PlayLoseMusicDelayed(1.2f));
     }
 
     private void ProceedToNextDay()
@@ -425,5 +578,172 @@ public class GameManager : MonoBehaviour
     private void ResetWholeGame()
     {
         InitializeGame();
+    }
+
+    private void PlayBackgroundMusic()
+    {
+        if (musicSource != null && backgroundMusic != null)
+        {
+            musicSource.clip = backgroundMusic;
+            musicSource.loop = true;
+            musicSource.Play();
+        }
+    }
+
+    private void PlayWinMusic()
+    {
+        if (musicSource != null && winMusic != null)
+        {
+            musicSource.clip = winMusic;
+            musicSource.loop = false;
+            musicSource.Play();
+        }
+    }
+
+    private void PlayLoseMusic()
+    {
+        if (musicSource != null && loseMusic != null)
+        {
+            musicSource.clip = loseMusic;
+            musicSource.loop = false;
+            musicSource.Play();
+        }
+    }
+
+    private void PlayBuzzerSound()
+    {
+        if (sfxSource != null && wrongBuzzerSound != null)
+        {
+            sfxSource.PlayOneShot(wrongBuzzerSound);
+        }
+    }
+
+    private System.Collections.IEnumerator PlayLoseMusicDelayed(float delay)
+    {
+        yield return new WaitForSecondsRealtime(delay);
+        if (CurrentState == GameState.GameOver)
+        {
+            PlayLoseMusic();
+        }
+    }
+
+    private void StopMusic()
+    {
+        if (musicSource != null)
+        {
+            musicSource.Stop();
+        }
+    }
+
+    public void ShowMenu()
+    {
+        CurrentState = GameState.Menu;
+        Time.timeScale = 0f; // Zamanı durdur
+
+        hudPanel.SetActive(false);
+        briefingPanel.SetActive(true);
+        reportPanel.SetActive(false);
+        gameOverPanel.SetActive(false);
+
+        // İmleci göster
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        // Müzik çal
+        PlayBackgroundMusic();
+
+        // Oyuna Başla butonunu yeşil yap
+        var startImg = startDayButton.GetComponent<Image>();
+        if (startImg != null)
+        {
+            startImg.color = new Color(0.18f, 0.77f, 0.31f); // Güzel bir zümrüt yeşili
+        }
+
+        // Mute butonunu aktif et ve butonları ortalayarak yan yana hizala
+        if (muteButton != null)
+        {
+            muteButton.gameObject.SetActive(true);
+            var muteImg = muteButton.GetComponent<Image>();
+            if (muteImg != null)
+            {
+                muteImg.color = new Color(0.5f, 0.5f, 0.5f); // Şık bir gri
+            }
+            if (startDayButton.transform.parent.GetComponent<UnityEngine.UI.LayoutGroup>() == null)
+            {
+                RectTransform startRect = startDayButton.GetComponent<RectTransform>();
+                RectTransform muteRect = muteButton.GetComponent<RectTransform>();
+                if (startRect != null && muteRect != null)
+                {
+                    float startWidth = startRect.rect.width;
+                    float muteWidth = muteRect.rect.width;
+                    float spacing = 20f; // 20 piksel boşluk
+
+                    // İki butonu da orijinal merkeze göre dengeli şekilde kaydır (Oyuna Başla solda, Mute sağda)
+                    startRect.anchoredPosition = originalStartButtonPosition - new Vector2((muteWidth + spacing) / 2f, 0f);
+                    muteRect.anchoredPosition = originalStartButtonPosition + new Vector2((startWidth + spacing) / 2f, 0f);
+                }
+            }
+            UpdateMuteButtonText();
+        }
+
+        // Metinleri ata
+        briefingTitleText.text = "<color=#FFaa00>Denetim ve Kalite Kontrol Simülasyonuna Hoş Geldiniz</color>";
+        
+        briefingContentText.text = "Fabrika kalite kontrol vardiyanıza başlamak üzeresiniz.\n\n" +
+                                   "<b>Göreviniz:</b> Banttan gelen kutuları günlük kurallara göre KABUL veya RET paletlerine yerleştirmektir.\n" +
+                                   "Hata limitinizi aşmadan günü tamamlamalısınız.\n\n" +
+                                   "<b>Başlamak için aşağıdaki butona tıklayın!</b>";
+
+        UpdateButtonText(startDayButton, "OYUNA BAŞLA");
+    }
+
+    private void OnStartDayButtonClicked()
+    {
+        if (CurrentState == GameState.Menu)
+        {
+            ShowBriefing();
+        }
+        else if (CurrentState == GameState.DayBriefing)
+        {
+            StartActiveDay();
+        }
+    }
+
+    private void ToggleMute()
+    {
+        isMuted = !isMuted;
+        
+        if (musicSource != null)
+        {
+            musicSource.mute = isMuted;
+        }
+
+        UpdateMuteButtonText();
+    }
+
+    private void UpdateMuteButtonText()
+    {
+        if (muteButton != null)
+        {
+            UpdateButtonText(muteButton, isMuted ? "Müzik Aç" : "Müziği Kapa");
+        }
+    }
+
+    private void UpdateButtonText(Button button, string newText)
+    {
+        if (button == null) return;
+        
+        var tmp = button.GetComponentInChildren<TextMeshProUGUI>();
+        if (tmp != null)
+        {
+            tmp.text = newText;
+            return;
+        }
+
+        var txt = button.GetComponentInChildren<Text>();
+        if (txt != null)
+        {
+            txt.text = newText;
+        }
     }
 }
