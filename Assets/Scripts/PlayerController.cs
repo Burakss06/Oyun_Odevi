@@ -14,6 +14,17 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float lookUpLimit = -90f;
     [SerializeField] private float lookDownLimit = 90f;
 
+    public float MouseSensitivity
+    {
+        get { return mouseSensitivity; }
+        set
+        {
+            mouseSensitivity = value;
+            PlayerPrefs.SetFloat("MouseSensitivity", value);
+            PlayerPrefs.Save();
+        }
+    }
+
     private CharacterController controller;
     private Vector3 velocity;
     private float xRotation = 0f;
@@ -30,6 +41,12 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         controller = GetComponent<CharacterController>();
+        
+        // Load sensitivity from PlayerPrefs if saved
+        if (PlayerPrefs.HasKey("MouseSensitivity"))
+        {
+            mouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity");
+        }
         
         // Başlangıç durumuna göre imleci ayarla
         UpdateCursorState();

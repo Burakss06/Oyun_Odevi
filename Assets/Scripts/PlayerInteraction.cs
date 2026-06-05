@@ -18,6 +18,14 @@ public class PlayerInteraction : MonoBehaviour
     private Rigidbody heldRigidbody;
     private GameObject lastTarget;
     private LineRenderer outlineLine;
+    private Collider playerCollider;
+
+    private struct ColliderState
+    {
+        public Collider collider;
+        public bool originalIsTrigger;
+    }
+    private List<ColliderState> heldColliders = new List<ColliderState>();
 
     [Header("Ses Efektleri")]
     [SerializeField] private AudioSource audioSource;
@@ -60,6 +68,8 @@ public class PlayerInteraction : MonoBehaviour
 
     void Start()
     {
+        playerCollider = GetComponent<CharacterController>();
+
         // Kusursuz kenar çizgileri için bir LineRenderer oluşturuyoruz
         GameObject lineObj = new GameObject("SelectionOutlineLine");
         outlineLine = lineObj.AddComponent<LineRenderer>();
@@ -188,6 +198,9 @@ public class PlayerInteraction : MonoBehaviour
                 {
                     heldObject = hit.collider.gameObject;
                 }
+
+                // Kutu tutulurken çarpışmayı engelle ve tetikleyici yap
+                SetHeldObjectCollision(heldObject, true);
                 
                 outlineLine.enabled = false;
                 lastTarget = null;
@@ -202,6 +215,9 @@ public class PlayerInteraction : MonoBehaviour
         if (heldObject != null)
         {
             PlaySound(putSound);
+
+            // Bırakmadan önce çarpışmayı geri aç
+            SetHeldObjectCollision(heldObject, false);
 
             if (heldRigidbody != null)
             {
@@ -218,8 +234,48 @@ public class PlayerInteraction : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Tutulan objenin collider'larını player ile ignore/restore eder ve trigger durumunu ayarlar.
+    /// </summary>
+    private void SetHeldObjectCollision(GameObject obj, bool ignore)
+    {
+        if (obj == null || playerCollider == null) return;
+
+        if (ignore)
+        {
+            heldColliders.Clear();
+            Collider[] cols = obj.GetComponentsInChildren<Collider>();
+            foreach (Collider col in cols)
+            {
+                ColliderState state;
+                state.collider = col;
+                state.originalIsTrigger = col.isTrigger;
+                heldColliders.Add(state);
+
+                Physics.IgnoreCollision(col, playerCollider, true);
+                col.isTrigger = true; // Fiziksel çakışmaları (uçma/titreme) önlemek için trigger yap
+            }
+        }
+        else
+        {
+            foreach (ColliderState state in heldColliders)
+            {
+                if (state.collider != null)
+                {
+                    Physics.IgnoreCollision(state.collider, playerCollider, false);
+                    state.collider.isTrigger = state.originalIsTrigger;
+                }
+            }
+            heldColliders.Clear();
+        }
+    }
+
     public void ResetInteraction()
     {
+        if (heldObject != null)
+        {
+            SetHeldObjectCollision(heldObject, false);
+        }
         heldObject = null;
         heldRigidbody = null;
         if (outlineLine != null)
