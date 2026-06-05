@@ -6,7 +6,7 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
-    public enum GameState { Menu, DayBriefing, Playing, DayReport, GameOver }
+    public enum GameState { Menu, DayBriefing, Playing, DayReport, GameOver, Paused }
     public GameState CurrentState { get; private set; }
 
     [Header("UI Panelleri")]
@@ -14,6 +14,13 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject briefingPanel;
     [SerializeField] private GameObject reportPanel;
     [SerializeField] private GameObject gameOverPanel;
+    [SerializeField] private GameObject pausePanel;
+
+    [Header("Pause Menu Elements")]
+    [SerializeField] private Slider sensitivitySlider;
+    [SerializeField] private Button pauseResumeButton;
+    [SerializeField] private Button pauseMuteButton;
+    [SerializeField] private TextMeshProUGUI sensitivityValueText;
 
     [Header("HUD Elemanları")]
     [SerializeField] private TextMeshProUGUI dayText;
@@ -212,6 +219,9 @@ public class GameManager : MonoBehaviour
         if (nextDayButton != null) nextDayButton.onClick.AddListener(ProceedToNextDay);
         if (retryDayButton != null) retryDayButton.onClick.AddListener(RestartCurrentDay);
         if (restartGameButton != null) restartGameButton.onClick.AddListener(ResetWholeGame);
+        if (pauseResumeButton != null) pauseResumeButton.onClick.AddListener(ResumeGame);
+        if (pauseMuteButton != null) pauseMuteButton.onClick.AddListener(ToggleMute);
+        if (sensitivitySlider != null) sensitivitySlider.onValueChanged.AddListener(OnSensitivityChanged);
 
         // Oyunu başlat
         InitializeGame();
@@ -244,6 +254,7 @@ public class GameManager : MonoBehaviour
         briefingPanel.SetActive(true);
         reportPanel.SetActive(false);
         gameOverPanel.SetActive(false);
+        if (pausePanel != null) pausePanel.SetActive(false);
 
         // Orijinal buton metnine, rengine ve pozisyonuna geri dön
         UpdateButtonText(startDayButton, originalStartButtonText);
@@ -339,6 +350,7 @@ public class GameManager : MonoBehaviour
         briefingPanel.SetActive(false);
         reportPanel.SetActive(false);
         gameOverPanel.SetActive(false);
+        if (pausePanel != null) pausePanel.SetActive(false);
 
         // FPS kontrolü için imleci gizle ve kilitle
         Cursor.lockState = CursorLockMode.Locked;
@@ -466,6 +478,7 @@ public class GameManager : MonoBehaviour
         briefingPanel.SetActive(false);
         reportPanel.SetActive(true);
         gameOverPanel.SetActive(false);
+        if (pausePanel != null) pausePanel.SetActive(false);
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -518,6 +531,7 @@ public class GameManager : MonoBehaviour
         briefingPanel.SetActive(false);
         reportPanel.SetActive(false);
         gameOverPanel.SetActive(true);
+        if (pausePanel != null) pausePanel.SetActive(false);
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -544,6 +558,7 @@ public class GameManager : MonoBehaviour
         briefingPanel.SetActive(false);
         reportPanel.SetActive(false);
         gameOverPanel.SetActive(true);
+        if (pausePanel != null) pausePanel.SetActive(false);
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -644,6 +659,7 @@ public class GameManager : MonoBehaviour
         briefingPanel.SetActive(true);
         reportPanel.SetActive(false);
         gameOverPanel.SetActive(false);
+        if (pausePanel != null) pausePanel.SetActive(false);
 
         // İmleci göster
         Cursor.lockState = CursorLockMode.None;
@@ -726,6 +742,79 @@ public class GameManager : MonoBehaviour
         if (muteButton != null)
         {
             UpdateButtonText(muteButton, isMuted ? "Müzik Aç" : "Müziği Kapa");
+        }
+        if (pauseMuteButton != null)
+        {
+            UpdateButtonText(pauseMuteButton, isMuted ? "Müzik Aç" : "Müziği Kapa");
+        }
+    }
+
+    private void Update()
+    {
+        if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            if (CurrentState == GameState.Playing)
+            {
+                PauseGame();
+            }
+            else if (CurrentState == GameState.Paused)
+            {
+                ResumeGame();
+            }
+        }
+    }
+
+    public void PauseGame()
+    {
+        if (CurrentState != GameState.Playing) return;
+
+        CurrentState = GameState.Paused;
+        Time.timeScale = 0f;
+
+        if (pausePanel != null) pausePanel.SetActive(true);
+        if (hudPanel != null) hudPanel.SetActive(false);
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        PlayerController player = FindObjectOfType<PlayerController>();
+        if (player != null && sensitivitySlider != null)
+        {
+            sensitivitySlider.value = player.MouseSensitivity;
+            if (sensitivityValueText != null)
+            {
+                sensitivityValueText.text = player.MouseSensitivity.ToString("F1");
+            }
+        }
+
+        UpdateMuteButtonText();
+    }
+
+    public void ResumeGame()
+    {
+        if (CurrentState != GameState.Paused) return;
+
+        CurrentState = GameState.Playing;
+        Time.timeScale = 1f;
+
+        if (pausePanel != null) pausePanel.SetActive(false);
+        if (hudPanel != null) hudPanel.SetActive(true);
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
+
+    public void OnSensitivityChanged(float value)
+    {
+        PlayerController player = FindObjectOfType<PlayerController>();
+        if (player != null)
+        {
+            player.MouseSensitivity = value;
+        }
+
+        if (sensitivityValueText != null)
+        {
+            sensitivityValueText.text = value.ToString("F1");
         }
     }
 
