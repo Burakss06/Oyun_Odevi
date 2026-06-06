@@ -4,8 +4,8 @@ using UnityEngine.InputSystem;
 public class PlayerController : MonoBehaviour
 {
     [Header("Movement Settings")]
-    [SerializeField] private float walkSpeed = 5.0f;
-    [SerializeField] private float runSpeed = 8.5f;
+    [SerializeField] private float walkSpeed = 3.8f;
+    [SerializeField] private float runSpeed = 5.2f;
     [SerializeField] private float gravity = -9.81f;
     public static float SpeedMultiplier = 1.0f;
 

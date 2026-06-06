@@ -4,18 +4,18 @@ using UnityEngine.InputSystem;
 public class HeadBobController : MonoBehaviour
 {
     [Header("Bob Settings - Walk")]
-    [SerializeField] private float walkBobSpeed = 10f;
-    [SerializeField] private float walkBobAmountY = 0.035f;
-    [SerializeField] private float walkBobAmountX = 0.015f;
+    [SerializeField] private float walkBobSpeed = 8f;
+    [SerializeField] private float walkBobAmountY = 0.018f;
+    [SerializeField] private float walkBobAmountX = 0.008f;
 
     [Header("Bob Settings - Run")]
-    [SerializeField] private float runBobSpeed = 14f;
-    [SerializeField] private float runBobAmountY = 0.06f;
-    [SerializeField] private float runBobAmountX = 0.03f;
+    [SerializeField] private float runBobSpeed = 11f;
+    [SerializeField] private float runBobAmountY = 0.03f;
+    [SerializeField] private float runBobAmountX = 0.015f;
 
     [Header("Tilt Settings")]
-    [SerializeField] private float walkTiltAmount = 0.5f;
-    [SerializeField] private float runTiltAmount = 1.2f;
+    [SerializeField] private float walkTiltAmount = 0.25f;
+    [SerializeField] private float runTiltAmount = 0.6f;
 
     [Header("Smooth Settings")]
     [SerializeField] private float bobSmoothing = 10f;
