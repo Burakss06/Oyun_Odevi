@@ -3513,6 +3513,19 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7684805817905981179, guid: 495f7dbe151fc1e46815cf9e306dda36, type: 3}
   m_PrefabInstance: {fileID: 195662149}
   m_PrefabAsset: {fileID: 0}
+--- !u!134 &196977871
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ' (Instance) (Instance) (Instance) (Instance) (Instance)'
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1001 &201531718
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12413,6 +12426,7 @@ MonoBehaviour:
   winMusic: {fileID: 0}
   loseMusic: {fileID: 0}
   wrongBuzzerSound: {fileID: 0}
+  correctChoiceSound: {fileID: 0}
 --- !u!4 &678130286
 Transform:
   m_ObjectHideFlags: 0
@@ -18522,19 +18536,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 546087652922622874, guid: 139cc0a54df21e34ba16da763091d465, type: 3}
   m_PrefabInstance: {fileID: 1013792764}
   m_PrefabAsset: {fileID: 0}
---- !u!134 &1018942102
-PhysicsMaterial:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: ' (Instance) (Instance) (Instance) (Instance)'
-  serializedVersion: 2
-  m_DynamicFriction: 0.6
-  m_StaticFriction: 0.6
-  m_Bounciness: 0
-  m_FrictionCombine: 0
-  m_BounceCombine: 0
 --- !u!1001 &1021121968
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -27713,6 +27714,7 @@ GameObject:
   - component: {fileID: 1577814294}
   - component: {fileID: 1577814299}
   - component: {fileID: 1577814300}
+  - component: {fileID: 1577814302}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -27733,7 +27735,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   walkSpeed: 5
-  runSpeed: 8.5
+  runSpeed: 7
   gravity: -9.81
   playerCamera: {fileID: 330585546}
   mouseSensitivity: 2
@@ -27746,7 +27748,7 @@ CharacterController:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1577814293}
-  m_Material: {fileID: 1018942102}
+  m_Material: {fileID: 196977871}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -27870,16 +27872,35 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8d3734680eb814448b2a6f7869eb89f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HeadBobController
-  walkBobSpeed: 12
-  walkBobAmountY: 0.065
-  walkBobAmountX: 0.03
-  runBobSpeed: 16
-  runBobAmountY: 0.1
-  runBobAmountX: 0.05
-  walkTiltAmount: 1
-  runTiltAmount: 2
+  walkBobSpeed: 10
+  walkBobAmountY: 0.032
+  walkBobAmountX: 0.015
+  runBobSpeed: 13
+  runBobAmountY: 0.05
+  runBobAmountX: 0.025
+  walkTiltAmount: 0.45
+  runTiltAmount: 0.85
   bobSmoothing: 10
   cameraTransform: {fileID: 330585546}
+--- !u!114 &1577814302
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1577814293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9705530a33e1f0b41aa3423634d986ae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CrosshairUI
+  normalDotSize: 8
+  hoverDotSize: 12
+  holdingDotSize: 4
+  normalColor: {r: 1, g: 1, b: 1, a: 0.75}
+  hoverColor: {r: 0.1, g: 0.9, b: 0.5, a: 0.95}
+  holdingColor: {r: 1, g: 1, b: 1, a: 0.2}
+  transitionSpeed: 15
 --- !u!1 &1577856488 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 3930293807128726561, guid: e5b0932cf3f98db478295d7d8cfedef7, type: 3}

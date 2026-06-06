@@ -21,6 +21,10 @@ public class PlayerInteraction : MonoBehaviour
     private LineRenderer outlineLine;
     private Collider playerCollider;
 
+    // Public getters for UI and crosshair feedback
+    public bool IsHoldingObject => heldObject != null;
+    public bool IsHoveringInteractable => lastTarget != null;
+
     private struct ColliderState
     {
         public Collider collider;

@@ -50,6 +50,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private AudioClip winMusic;
     [SerializeField] private AudioClip loseMusic;
     [SerializeField] private AudioClip wrongBuzzerSound;
+    [SerializeField] private AudioClip correctChoiceSound;
 
     [Header("İstatistikler")]
     public int Score { get; private set; }
@@ -128,6 +129,10 @@ public class GameManager : MonoBehaviour
         if (wrongBuzzerSound == null)
         {
             wrongBuzzerSound = Resources.Load<AudioClip>("Audio/wrong_buzzer");
+        }
+        if (correctChoiceSound == null)
+        {
+            correctChoiceSound = Resources.Load<AudioClip>("Audio/correct_ding");
         }
     }
 
@@ -402,6 +407,7 @@ public class GameManager : MonoBehaviour
         Score++;
         TotalProcessedBoxes++;
         UpdateHUD();
+        PlayCorrectSound();
         CheckDayCompletion();
     }
 
@@ -647,6 +653,14 @@ public class GameManager : MonoBehaviour
         if (sfxSource != null && wrongBuzzerSound != null)
         {
             sfxSource.PlayOneShot(wrongBuzzerSound);
+        }
+    }
+
+    private void PlayCorrectSound()
+    {
+        if (sfxSource != null && correctChoiceSound != null)
+        {
+            sfxSource.PlayOneShot(correctChoiceSound);
         }
     }
 
