@@ -5,7 +5,8 @@ using System.Collections.Generic;
 public class PlayerInteraction : MonoBehaviour
 {
     [Header("Etkileşim Ayarları")]
-    [SerializeField] private float interactionDistance = 4.0f;
+    [SerializeField] private float interactionDistance = 2.2f;
+    public static float InteractionDistanceMultiplier = 1.0f;
     [SerializeField] private Transform holdPoint;
     [SerializeField] private Transform playerCamera;
     [SerializeField] private float followSpeed = 25f;
@@ -129,8 +130,14 @@ public class PlayerInteraction : MonoBehaviour
             return;
         }
 
-        RaycastHit hit;
-        if (Physics.Raycast(playerCamera.position, playerCamera.forward, out hit, interactionDistance))
+        // Kapsamlı tarama: Lazerin çarptığı her şeyi listele
+        float dist = interactionDistance * InteractionDistanceMultiplier;
+        RaycastHit[] hits = Physics.RaycastAll(playerCamera.position, playerCamera.forward, dist);
+        
+        // Mesafeye göre yakından uzağa sırala
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        foreach (RaycastHit hit in hits)
         {
             if (hit.collider.name.Contains("Cardboard Box"))
             {
@@ -140,7 +147,15 @@ public class PlayerInteraction : MonoBehaviour
                     lastTarget = currentTarget;
                     outlineLine.enabled = true;
                 }
-                return;
+                return; // Kutuyu bulduk, işlemi bitir
+            }
+
+            // Kutu değilse ve görünmez bir etkileşim alanı (trigger) da değilse, muhtemelen katı bir engeldir (cam, duvar vb.)
+            // Ancak Forklift'in görünmez büyük bir katı çarpışma alanı olduğu için onu istisna tutuyoruz ki hata çözülmeye devam etsin.
+            if (!hit.collider.isTrigger && !hit.collider.name.ToLower().Contains("forklift"))
+            {
+                // Cam veya başka bir katı duvara çarptık. Arkasındaki kutuyu almayı engellemek için taramayı durdur.
+                break;
             }
         }
 
@@ -180,34 +195,47 @@ public class PlayerInteraction : MonoBehaviour
 
     private void TryPickUp()
     {
-        RaycastHit hit;
-        if (Physics.Raycast(playerCamera.position, playerCamera.forward, out hit, interactionDistance))
+        float dist = interactionDistance * InteractionDistanceMultiplier;
+        RaycastHit[] hits = Physics.RaycastAll(playerCamera.position, playerCamera.forward, dist);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        foreach (RaycastHit hit in hits)
         {
             if (hit.collider.name.Contains("Cardboard Box"))
             {
-                // Objeyi doğru alabilmek için eğer rigidbody child veya parent'taysa attachedRigidbody kullanıyoruz
-                heldRigidbody = hit.collider.attachedRigidbody;
-                
-                if (heldRigidbody != null)
-                {
-                    heldObject = heldRigidbody.gameObject;
-                    heldRigidbody.isKinematic = true;
-                    heldRigidbody.useGravity = false;
-                }
-                else
-                {
-                    heldObject = hit.collider.gameObject;
-                }
+                ExecutePickUp(hit.collider);
+                return;
+            }
 
-                // Kutu tutulurken çarpışmayı engelle ve tetikleyici yap
-                SetHeldObjectCollision(heldObject, true);
-                
-                outlineLine.enabled = false;
-                lastTarget = null;
-
-                PlaySound(grabSound);
+            if (!hit.collider.isTrigger && !hit.collider.name.ToLower().Contains("forklift"))
+            {
+                // Cam veya duvar arkasından almayı engelle
+                break;
             }
         }
+    }
+
+    private void ExecutePickUp(Collider hitCollider)
+    {
+        heldRigidbody = hitCollider.attachedRigidbody;
+        
+        if (heldRigidbody != null)
+        {
+            heldObject = heldRigidbody.gameObject;
+            heldRigidbody.isKinematic = true;
+            heldRigidbody.useGravity = false;
+        }
+        else
+        {
+            heldObject = hitCollider.gameObject;
+        }
+
+        SetHeldObjectCollision(heldObject, true);
+        
+        outlineLine.enabled = false;
+        lastTarget = null;
+
+        PlaySound(grabSound);
     }
 
     private void DropObject()

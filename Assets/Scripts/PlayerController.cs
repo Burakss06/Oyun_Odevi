@@ -7,6 +7,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float walkSpeed = 5.0f;
     [SerializeField] private float runSpeed = 8.5f;
     [SerializeField] private float gravity = -9.81f;
+    public static float SpeedMultiplier = 1.0f;
 
     [Header("Look Settings")]
     [SerializeField] private Transform playerCamera;
@@ -114,10 +115,10 @@ public class PlayerController : MonoBehaviour
             if (Keyboard.current.dKey.isPressed) input.x += 1;
         }
 
-        float currentSpeed = walkSpeed;
+        float currentSpeed = walkSpeed * SpeedMultiplier;
         if (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed)
         {
-            currentSpeed = runSpeed;
+            currentSpeed = runSpeed * SpeedMultiplier;
         }
 
         Vector3 move = transform.right * input.x + transform.forward * input.y;

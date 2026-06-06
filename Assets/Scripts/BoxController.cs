@@ -66,6 +66,9 @@ public class BoxController : MonoBehaviour
     private Vector3 originalScale;
     private Rigidbody rb;
 
+    public static bool IsSharpEyeActive = false;
+    private bool isHighlighted = false;
+
     private void Awake()
     {
         originalScale = transform.localScale;
@@ -163,8 +166,40 @@ public class BoxController : MonoBehaviour
         isEvaluated = true;
     }
 
+    private void ApplyHighlight(bool enable)
+    {
+        Renderer[] renderers = GetComponentsInChildren<Renderer>();
+        foreach (Renderer ren in renderers)
+        {
+            if (ren is LineRenderer) continue;
+
+            if (enable)
+            {
+                ren.material.EnableKeyword("_EMISSION");
+                ren.material.SetColor("_EmissionColor", Color.yellow * 2.5f); // Parlak sarı neon efekti
+            }
+            else
+            {
+                ren.material.DisableKeyword("_EMISSION");
+                ren.material.SetColor("_EmissionColor", Color.black);
+            }
+        }
+    }
+
     private void Update()
     {
+        // Keskin Göz (Sharp Eye) mantığı: Aktifse ve hatalıysa parlat
+        if (IsSharpEyeActive && IsDefective && !isHighlighted)
+        {
+            isHighlighted = true;
+            ApplyHighlight(true);
+        }
+        else if (!IsSharpEyeActive && isHighlighted)
+        {
+            isHighlighted = false;
+            ApplyHighlight(false);
+        }
+
         // Eğer değerlendirilmediyse ve banttan aşağı veya sahne dışına düştüyse (Y pozisyonu çok düşükse)
         if (!isEvaluated && transform.position.y < -4.0f)
         {

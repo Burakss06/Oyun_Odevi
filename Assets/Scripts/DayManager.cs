@@ -148,6 +148,18 @@ public class DayManager : MonoBehaviour
         isTimerRunning = false;
     }
 
+    /// <summary>
+    /// Güçlendirici ile süre eklemek için kullanılır (Zaman Bükücü).
+    /// </summary>
+    public void AddTime(float extraTime)
+    {
+        if (isTimerRunning)
+        {
+            timer += extraTime;
+            Debug.Log($"[DayManager] {extraTime} saniye eklendi. Kalan süre: {timer}");
+        }
+    }
+
     private void Update()
     {
         if (isTimerRunning && GameManager.Instance != null && GameManager.Instance.CurrentState == GameManager.GameState.Playing)

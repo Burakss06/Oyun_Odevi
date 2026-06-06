@@ -11,6 +11,9 @@ public class ConveyorBeltPush : MonoBehaviour
     [Tooltip("Speed of the conveyor belt in m/s")]
     public float speed = 2.0f;
 
+    [Tooltip("Global speed multiplier (used by PowerUps)")]
+    public static float GlobalSpeedMultiplier = 1.0f;
+
     [Tooltip("Push direction in WORLD space")]
     public Vector3 worldPushDirection = new Vector3(0, 0, -1);
 
@@ -24,7 +27,7 @@ public class ConveyorBeltPush : MonoBehaviour
 
         // Use MovePosition for reliable movement that respects collisions
         Vector3 dir = worldPushDirection.normalized;
-        Vector3 newPos = rb.position + dir * speed * Time.fixedDeltaTime;
+        Vector3 newPos = rb.position + dir * (speed * GlobalSpeedMultiplier) * Time.fixedDeltaTime;
         rb.MovePosition(newPos);
     }
 }

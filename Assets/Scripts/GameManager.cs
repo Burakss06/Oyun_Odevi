@@ -423,6 +423,19 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Güçlendirici ile yapılan hataları silmek için kullanılır (Müfettişin İzni).
+    /// </summary>
+    public void DecreaseErrorCount()
+    {
+        if (Errors > 0)
+        {
+            Errors--;
+            UpdateHUD();
+            Debug.Log($"[GameManager] Hata sayısı 1 düşürüldü. Mevcut Hata: {Errors}");
+        }
+    }
+
     public void BoxMissed()
     {
         TotalProcessedBoxes++;
@@ -504,6 +517,10 @@ public class GameManager : MonoBehaviour
             {
                 PlayWinMusic();
             }
+        }
+        else
+        {
+            PlayLoseMusic();
         }
         
         reportTitleText.text = isSuccess ? "GÜN TAMAMLANDI" : "GÜN BAŞARISIZ";
