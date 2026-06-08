@@ -221,6 +221,19 @@ public class GameManager : MonoBehaviour
             UpdateMuteButtonText();
         }
 
+        // Dinamik olarak Pause Menu UI'ı kur ve referansları güncelle
+        if (pausePanel != null)
+        {
+            var pauseMenuUI = pausePanel.GetComponent<PauseMenuUI>();
+            if (pauseMenuUI == null) pauseMenuUI = pausePanel.AddComponent<PauseMenuUI>();
+            pauseMenuUI.BuildUI();
+            
+            pauseResumeButton = pauseMenuUI.resumeButton;
+            pauseMuteButton = pauseMenuUI.muteButton;
+            sensitivitySlider = pauseMenuUI.sensitivitySlider;
+            sensitivityValueText = pauseMenuUI.sensitivityValueText;
+        }
+
         if (nextDayButton != null) nextDayButton.onClick.AddListener(ProceedToNextDay);
         if (retryDayButton != null) retryDayButton.onClick.AddListener(RestartCurrentDay);
         if (restartGameButton != null) restartGameButton.onClick.AddListener(ResetWholeGame);
