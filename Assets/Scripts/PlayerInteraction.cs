@@ -11,6 +11,9 @@ public class PlayerInteraction : MonoBehaviour
     [SerializeField] private Transform playerCamera;
     [SerializeField] private float followSpeed = 25f;
 
+    [Header("Tartı Etkileşimi")]
+    [SerializeField] private float scaleInteractionDistance = 3.5f;
+
     [Header("Görsel (Outline) Ayarları")]
     [SerializeField] private Color outlineColor = Color.white;
     [SerializeField] private float outlineWidth = 0.015f; // Daha belirgin kalınlık
@@ -20,10 +23,13 @@ public class PlayerInteraction : MonoBehaviour
     private GameObject lastTarget;
     private LineRenderer outlineLine;
     private Collider playerCollider;
+    private WeighingScale lookedAtScale = null;
 
     // Public getters for UI and crosshair feedback
     public bool IsHoldingObject => heldObject != null;
     public bool IsHoveringInteractable => lastTarget != null;
+    public bool IsLookingAtScale => lookedAtScale != null;
+    public WeighingScale LookedAtScale => lookedAtScale;
 
     private struct ColliderState
     {
@@ -101,11 +107,38 @@ public class PlayerInteraction : MonoBehaviour
     void Update()
     {
         HandleHighlight();
+        DetectScale();
 
         if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
         {
-            if (heldObject == null) TryPickUp();
-            else DropObject();
+            if (heldObject == null)
+            {
+                // Elimiz boşken E'ye bastık
+                if (lookedAtScale != null && lookedAtScale.HasBox)
+                {
+                    // Tartıya bakıyoruz ve tartıda kutu var -> Tartıdan al
+                    RetrieveBoxFromScale();
+                }
+                else
+                {
+                    // Normal yerden kutu kaldır
+                    TryPickUp();
+                }
+            }
+            else
+            {
+                // Elimizde kutu varken E'ye bastık
+                if (lookedAtScale != null && !lookedAtScale.HasBox)
+                {
+                    // Tartıya bakıyoruz ve tartı boş -> Tartıya koy
+                    PlaceBoxOnScale();
+                }
+                else
+                {
+                    // Normal yere bırak
+                    DropObject();
+                }
+            }
         }
     }
 
@@ -234,6 +267,13 @@ public class PlayerInteraction : MonoBehaviour
             heldObject = hitCollider.gameObject;
         }
 
+        // Eğer bu kutu tartı üzerindeyse, tartıdan düzgün bir şekilde çıkarıp sıfırlayalım
+        var scale = Object.FindAnyObjectByType<WeighingScale>();
+        if (scale != null && scale.HasBox && scale.CurrentBox != null && (scale.CurrentBox.gameObject == heldObject || scale.CurrentBox.transform == heldObject.transform))
+        {
+            scale.RetrieveBox();
+        }
+
         SetHeldObjectCollision(heldObject, true);
         
         outlineLine.enabled = false;
@@ -263,6 +303,75 @@ public class PlayerInteraction : MonoBehaviour
             }
             heldObject = null;
             heldRigidbody = null;
+        }
+    }
+
+    // ========== TARTI ETKİLEŞİMİ ==========
+
+    /// <summary>
+    /// Oyuncunun baktığı yönde tartı var mı kontrol eder.
+    /// </summary>
+    private void DetectScale()
+    {
+        lookedAtScale = null;
+        RaycastHit hit;
+        if (Physics.Raycast(playerCamera.position, playerCamera.forward, out hit, scaleInteractionDistance))
+        {
+            WeighingScale scale = hit.collider.GetComponent<WeighingScale>();
+            if (scale == null) scale = hit.collider.GetComponentInParent<WeighingScale>();
+            if (scale != null)
+            {
+                lookedAtScale = scale;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Kutuyu tartıya yerleştirir.
+    /// </summary>
+    private void PlaceBoxOnScale()
+    {
+        if (lookedAtScale == null || heldObject == null) return;
+
+        BoxController box = heldObject.GetComponent<BoxController>();
+        if (box == null) box = heldObject.GetComponentInParent<BoxController>();
+        if (box != null && !lookedAtScale.HasBox)
+        {
+            // Önce collision'ı geri yükle
+            SetHeldObjectCollision(heldObject, false);
+
+            // Kutuyu tartıya yerleştir
+            lookedAtScale.PlaceBox(box);
+
+            // Elimizden bırak
+            heldObject = null;
+            heldRigidbody = null;
+
+            PlaySound(putSound);
+        }
+    }
+
+    /// <summary>
+    /// Kutuyu tartıdan geri alır.
+    /// </summary>
+    private void RetrieveBoxFromScale()
+    {
+        if (lookedAtScale == null || !lookedAtScale.HasBox) return;
+
+        BoxController box = lookedAtScale.RetrieveBox();
+        if (box != null)
+        {
+            heldObject = box.gameObject;
+            heldRigidbody = box.GetComponent<Rigidbody>();
+
+            if (heldRigidbody != null)
+            {
+                heldRigidbody.isKinematic = true;
+                heldRigidbody.useGravity = false;
+            }
+
+            SetHeldObjectCollision(heldObject, true);
+            PlaySound(grabSound);
         }
     }
 

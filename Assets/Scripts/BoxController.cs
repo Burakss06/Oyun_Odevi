@@ -25,6 +25,10 @@ public class BoxController : MonoBehaviour
     public BoxShape Shape { get; set; } = BoxShape.Closed;
     public bool isMysteryBox = false;
 
+    [Header("Ağırlık Bilgisi")]
+    [SerializeField] private float weight = 5.0f;
+    public float Weight => weight;
+
     public bool IsDefective
     {
         get
@@ -52,6 +56,8 @@ public class BoxController : MonoBehaviour
                 DayConfig config = DayManager.Instance.GetCurrentDayConfig();
                 if (config.allowWrongColorDefect && currentDefect == DefectType.WrongColor) hasActiveDefect = true;
                 if (config.allowSizeAnomalyDefect && currentDefect == DefectType.SizeAnomaly) hasActiveDefect = true;
+                // Ağırlık hatası: 10 kg ve üzeri kutular defolu sayılır
+                if (config.allowWeightDefect && weight >= 10.0f) hasActiveDefect = true;
             }
 
             return shouldGoToRetByShape || hasActiveDefect;
@@ -100,6 +106,24 @@ public class BoxController : MonoBehaviour
         else
         {
             currentDefect = DefectType.None;
+        }
+
+        // Ağırlık ataması
+        if (config.allowWeightDefect)
+        {
+            // 6. gün ve sonrası: %40 ağır kutu, %60 normal kutu
+            if (Random.value < 0.4f)
+            {
+                weight = Random.Range(10.0f, 15.0f); // Ağır (defolu)
+            }
+            else
+            {
+                weight = Random.Range(3.0f, 9.9f); // Normal
+            }
+        }
+        else
+        {
+            weight = Random.Range(3.0f, 8.0f); // Standart günler
         }
 
         // Kusurun görsel etkilerini uygula

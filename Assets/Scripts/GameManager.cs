@@ -330,6 +330,10 @@ public class GameManager : MonoBehaviour
             {
                 rulesText += "- SÜRPRİZ KUTU UYARISI: Mor renkli Sürpriz Kutular gelebilir! Nereye koyarsan koy %50 şansla doğru veya yanlış sayılacaktır.\n";
             }
+            if (config.allowWeightDefect)
+            {
+                rulesText += "- AĞIRLIK KURALI: Kutuları tartıda tart! 10.0 kg ve üzeri ağır kutuları RET paletine yerleştir!\n";
+            }
 
             briefingContentText.text = $"Hedef: Toplam {config.totalBoxesToSpawn} kutunun kontrolünü yap.\n" +
                                        $"Hata Limiti: Maksimum {config.allowedErrors} hata yapma hakkın var.\n" +
@@ -514,7 +518,7 @@ public class GameManager : MonoBehaviour
         
         if (isSuccess)
         {
-            if (config.dayNumber == 5)
+            if (config.dayNumber == 6)
             {
                 TriggerGameWin();
                 return;
@@ -566,7 +570,7 @@ public class GameManager : MonoBehaviour
 
         // Metin rengini YEŞİL yap
         gameOverText.color = Color.green;
-        gameOverText.text = $"TEBRİKLER! OYUNU KAZANDINIZ\n\n5 günlük fabrika kalite kontrol vardiyasını başarıyla tamamladın ve usta bir fabrika işçisi olduğunu kanıtladın!\n\nToplam Doğru: {Score}\nYaptığın Toplam Hata: {Errors}\n\nYeniden başlamak için aşağıdaki butonu kullanabilirsin.";
+        gameOverText.text = $"TEBRİKLER! OYUNU KAZANDINIZ\n\n6 günlük fabrika kalite kontrol vardiyasını başarıyla tamamladın ve usta bir fabrika işçisi olduğunu kanıtladın!\n\nToplam Doğru: {Score}\nYaptığın Toplam Hata: {Errors}\n\nYeniden başlamak için aşağıdaki butonu kullanabilirsin.";
     }
 
     public void TriggerGameOver(string reason)
