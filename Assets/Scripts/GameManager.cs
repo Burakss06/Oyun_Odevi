@@ -221,6 +221,19 @@ public class GameManager : MonoBehaviour
             UpdateMuteButtonText();
         }
 
+        // Dinamik olarak Pause Menu UI'ı kur ve referansları güncelle
+        if (pausePanel != null)
+        {
+            var pauseMenuUI = pausePanel.GetComponent<PauseMenuUI>();
+            if (pauseMenuUI == null) pauseMenuUI = pausePanel.AddComponent<PauseMenuUI>();
+            pauseMenuUI.BuildUI();
+            
+            pauseResumeButton = pauseMenuUI.resumeButton;
+            pauseMuteButton = pauseMenuUI.muteButton;
+            sensitivitySlider = pauseMenuUI.sensitivitySlider;
+            sensitivityValueText = pauseMenuUI.sensitivityValueText;
+        }
+
         if (nextDayButton != null) nextDayButton.onClick.AddListener(ProceedToNextDay);
         if (retryDayButton != null) retryDayButton.onClick.AddListener(RestartCurrentDay);
         if (restartGameButton != null) restartGameButton.onClick.AddListener(ResetWholeGame);
@@ -329,6 +342,10 @@ public class GameManager : MonoBehaviour
             if (config.dayNumber == 5)
             {
                 rulesText += "- SÜRPRİZ KUTU UYARISI: Mor renkli Sürpriz Kutular gelebilir! Nereye koyarsan koy %50 şansla doğru veya yanlış sayılacaktır.\n";
+            }
+            if (config.allowWeightDefect)
+            {
+                rulesText += "- AĞIRLIK KURALI: Kutuları tartıda tart! 10.0 kg ve üzeri ağır kutuları RET paletine yerleştir!\n";
             }
 
             briefingContentText.text = $"Hedef: Toplam {config.totalBoxesToSpawn} kutunun kontrolünü yap.\n" +
@@ -514,7 +531,7 @@ public class GameManager : MonoBehaviour
         
         if (isSuccess)
         {
-            if (config.dayNumber == 5)
+            if (config.dayNumber == 6)
             {
                 TriggerGameWin();
                 return;
@@ -566,7 +583,7 @@ public class GameManager : MonoBehaviour
 
         // Metin rengini YEŞİL yap
         gameOverText.color = Color.green;
-        gameOverText.text = $"TEBRİKLER! OYUNU KAZANDINIZ\n\n5 günlük fabrika kalite kontrol vardiyasını başarıyla tamamladın ve usta bir fabrika işçisi olduğunu kanıtladın!\n\nToplam Doğru: {Score}\nYaptığın Toplam Hata: {Errors}\n\nYeniden başlamak için aşağıdaki butonu kullanabilirsin.";
+        gameOverText.text = $"TEBRİKLER! OYUNU KAZANDINIZ\n\n6 günlük fabrika kalite kontrol vardiyasını başarıyla tamamladın ve usta bir fabrika işçisi olduğunu kanıtladın!\n\nToplam Doğru: {Score}\nYaptığın Toplam Hata: {Errors}\n\nYeniden başlamak için aşağıdaki butonu kullanabilirsin.";
     }
 
     public void TriggerGameOver(string reason)

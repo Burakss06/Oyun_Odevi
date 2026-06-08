@@ -14,6 +14,7 @@ public struct DayConfig
     public bool allowDamagedDefect;
     public bool allowWrongColorDefect;
     public bool allowSizeAnomalyDefect;
+    public bool allowWeightDefect;
 }
 
 public class DayManager : MonoBehaviour
@@ -99,7 +100,7 @@ public class DayManager : MonoBehaviour
                 allowSizeAnomalyDefect = true
             });
 
-            // 5. Gün (Final): Kapalı, Açık, Düz, Yanlış Renkli, Boyut anomalili ve Sürpriz kutular. Hasarlı kapalı.
+            // 5. Gün: Kapalı, Açık, Düz, Yanlış Renkli, Boyut anomalili ve Sürpriz kutular. Hasarlı kapalı.
             dayConfigs.Add(new DayConfig
             {
                 dayNumber = 5,
@@ -109,7 +110,22 @@ public class DayManager : MonoBehaviour
                 dayDuration = 180f,
                 allowDamagedDefect = false,
                 allowWrongColorDefect = true,
-                allowSizeAnomalyDefect = true
+                allowSizeAnomalyDefect = true,
+                allowWeightDefect = false
+            });
+
+            // 6. Gün: TARTI GÜNÜ! Tüm kurallar + ağırlık kontrolü.
+            dayConfigs.Add(new DayConfig
+            {
+                dayNumber = 6,
+                totalBoxesToSpawn = 25,
+                defectSpawnChance = 0.5f,
+                allowedErrors = 2,
+                dayDuration = 200f,
+                allowDamagedDefect = false,
+                allowWrongColorDefect = true,
+                allowSizeAnomalyDefect = true,
+                allowWeightDefect = true
             });
         }
     }
@@ -129,7 +145,8 @@ public class DayManager : MonoBehaviour
                 dayDuration = lastConfig.dayDuration + 10f,
                 allowDamagedDefect = true,
                 allowWrongColorDefect = true,
-                allowSizeAnomalyDefect = true
+                allowSizeAnomalyDefect = true,
+                allowWeightDefect = true
             };
         }
 

@@ -3,8 +3,9 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Pause menüsünü runtime'da tasarıma uygun şekilde oluşturur.
-/// Tam ekran yarı-saydam overlay, ortada başlık, ortada slider, altta yeşil buton barı.
+/// Pause menüsünü runtime'da premium ve profesyonel tasarıma uygun şekilde oluşturur.
+/// Genel olarak boyutu ve yazıları biraz daha büyütülmüş, ferah ve geniş ekran dostu arayüz.
+/// Slider'ın eni genişletilmiş ve sürükleme tutacağı (handle) dairesel bir noktaya dönüştürülmüştür.
 /// </summary>
 public class PauseMenuUI : MonoBehaviour
 {
@@ -33,40 +34,58 @@ public class PauseMenuUI : MonoBehaviour
             DestroyImmediate(transform.GetChild(i).gameObject);
         }
 
-        // --- ANA PANEL (tam ekran overlay) ---
+        // --- ANA OVERLAY (Tam ekran arka plan) ---
         RectTransform panelRect = GetComponent<RectTransform>();
         if (panelRect == null) panelRect = gameObject.AddComponent<RectTransform>();
-        // Tam ekranı kapla
         panelRect.anchorMin = Vector2.zero;
         panelRect.anchorMax = Vector2.one;
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
 
-        // Yarı-saydam siyah overlay
         Image overlayImg = gameObject.GetComponent<Image>();
         if (overlayImg == null) overlayImg = gameObject.AddComponent<Image>();
-        overlayImg.color = new Color(0f, 0f, 0f, 0.55f);
+        overlayImg.color = new Color(0.03f, 0.03f, 0.05f, 0.65f); // Koyu sinematik overlay
         overlayImg.raycastTarget = true;
 
         // ============================================================
-        // Ana içerik konteyneri - dikey layout, ekranın ortasında
+        // ANA KART PANELİ (Koyu panel kutusu - rounded corners)
         // ============================================================
-        GameObject contentRoot = MakeObj("ContentRoot", transform);
+        GameObject cardObj = MakeObj("MenuCard", transform);
+        RectTransform cardRect = cardObj.GetComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.pivot = new Vector2(0.5f, 0.5f);
+        cardRect.sizeDelta = new Vector2(550f, 550f);
+        cardRect.anchoredPosition = new Vector2(0f, 20f);
+
+        Image cardImg = cardObj.AddComponent<Image>();
+        cardImg.sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/Background.psd"); // Yuvarlatılmış köşe
+        cardImg.type = Image.Type.Sliced;
+        cardImg.color = new Color(0.12f, 0.12f, 0.15f, 0.96f);
+        cardImg.raycastTarget = true;
+
+        // Kenarlık (border)
+        Outline cardOutline = cardObj.AddComponent<Outline>();
+        cardOutline.effectColor = new Color(1f, 1f, 1f, 0.08f);
+        cardOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+        // ============================================================
+        // İÇERİK DÜZENİ (Vertical Layout Group)
+        // ============================================================
+        GameObject contentRoot = MakeObj("ContentRoot", cardObj.transform);
         RectTransform contentRect = contentRoot.GetComponent<RectTransform>();
-        contentRect.anchorMin = new Vector2(0.5f, 0.5f);
-        contentRect.anchorMax = new Vector2(0.5f, 0.5f);
-        contentRect.pivot = new Vector2(0.5f, 0.5f);
-        contentRect.sizeDelta = new Vector2(500f, 380f);
-        contentRect.anchoredPosition = new Vector2(0f, 30f); // Biraz yukarıda
+        contentRect.anchorMin = Vector2.zero;
+        contentRect.anchorMax = Vector2.one;
+        contentRect.offsetMin = new Vector2(35f, 35f); // İç boşluklar (padding)
+        contentRect.offsetMax = new Vector2(-35f, -35f);
 
         VerticalLayoutGroup contentLayout = contentRoot.AddComponent<VerticalLayoutGroup>();
         contentLayout.childAlignment = TextAnchor.MiddleCenter;
         contentLayout.childControlWidth = true;
-        contentLayout.childControlHeight = false;
+        contentLayout.childControlHeight = true;
         contentLayout.childForceExpandWidth = true;
         contentLayout.childForceExpandHeight = false;
-        contentLayout.spacing = 0f;
-        contentLayout.padding = new RectOffset(0, 0, 0, 0);
+        contentLayout.spacing = 22f; // Elemanlar arası boşluk
 
         // ============================================================
         // 1) BAŞLIK: "OYUN DURDURULDU"
@@ -74,103 +93,93 @@ public class PauseMenuUI : MonoBehaviour
         GameObject titleObj = MakeObj("TitleText", contentRoot.transform);
         TextMeshProUGUI titleTMP = titleObj.AddComponent<TextMeshProUGUI>();
         titleTMP.text = "OYUN DURDURULDU";
-        titleTMP.fontSize = 44f;
+        titleTMP.fontSize = 34f;
         titleTMP.fontStyle = FontStyles.Bold;
-        titleTMP.color = new Color(1f, 0.67f, 0f, 1f); // Turuncu
+        titleTMP.color = new Color(1f, 0.67f, 0f, 1f);
         titleTMP.alignment = TextAlignmentOptions.Center;
         titleTMP.textWrappingMode = TextWrappingModes.NoWrap;
+        titleTMP.raycastTarget = false;
+        
         LayoutElement titleLE = titleObj.AddComponent<LayoutElement>();
-        titleLE.preferredHeight = 70f;
+        titleLE.preferredHeight = 50f;
 
-        // Spacer
-        AddSpacer(contentRoot.transform, 50f);
+        // Seperator (İnce çizgi)
+        GameObject separator = MakeObj("Separator", contentRoot.transform);
+        Image sepImg = separator.AddComponent<Image>();
+        sepImg.color = new Color(1f, 1f, 1f, 0.1f);
+        sepImg.raycastTarget = false;
+        
+        LayoutElement sepLE = separator.AddComponent<LayoutElement>();
+        sepLE.preferredHeight = 3f;
 
         // ============================================================
-        // 2) FARE HASSASİYETİ LABEL
+        // 2) FARE HASSASİYETİ YAZISI
         // ============================================================
         GameObject sensLabel = MakeObj("SensLabel", contentRoot.transform);
         TextMeshProUGUI sensLabelTMP = sensLabel.AddComponent<TextMeshProUGUI>();
         sensLabelTMP.text = "FARE HASSASİYETİ";
-        sensLabelTMP.fontSize = 17f;
+        sensLabelTMP.fontSize = 18f;
         sensLabelTMP.fontStyle = FontStyles.Bold;
-        sensLabelTMP.color = new Color(1f, 1f, 1f, 0.95f);
+        sensLabelTMP.color = new Color(1f, 1f, 1f, 0.55f);
         sensLabelTMP.alignment = TextAlignmentOptions.Center;
+        sensLabelTMP.raycastTarget = false;
+
         LayoutElement sensLabelLE = sensLabel.AddComponent<LayoutElement>();
-        sensLabelLE.preferredHeight = 28f;
+        sensLabelLE.preferredHeight = 25f;
 
         // ============================================================
-        // 3) SLIDER + DEĞER SATIRI
+        // 3) SLIDER + DEĞER SATIRI (Horizontal Layout)
         // ============================================================
         GameObject sliderRow = MakeObj("SliderRow", contentRoot.transform);
         HorizontalLayoutGroup sliderRowHL = sliderRow.AddComponent<HorizontalLayoutGroup>();
         sliderRowHL.childAlignment = TextAnchor.MiddleCenter;
-        sliderRowHL.childControlWidth = false;
+        sliderRowHL.childControlWidth = true; // Slider eninin doğru yerleşmesi için true yapıldı!
         sliderRowHL.childControlHeight = true;
         sliderRowHL.childForceExpandWidth = false;
         sliderRowHL.childForceExpandHeight = false;
-        sliderRowHL.spacing = 12f;
-        sliderRowHL.padding = new RectOffset(20, 20, 0, 0);
+        sliderRowHL.spacing = 18f;
+
         LayoutElement sliderRowLE = sliderRow.AddComponent<LayoutElement>();
-        sliderRowLE.preferredHeight = 30f;
+        sliderRowLE.preferredHeight = 40f;
 
         // Slider
         GameObject sliderGO = BuildSlider(sliderRow.transform);
+        sensitivitySlider = sliderGO.GetComponent<Slider>();
         LayoutElement sliderLE = sliderGO.AddComponent<LayoutElement>();
-        sliderLE.preferredWidth = 340f;
-        sliderLE.preferredHeight = 20f;
+        sliderLE.preferredWidth = 340f; // Slider genişliği
+        sliderLE.preferredHeight = 28f;
 
         // Değer metni
         GameObject valueObj = MakeObj("ValueText", sliderRow.transform);
         sensitivityValueText = valueObj.AddComponent<TextMeshProUGUI>();
-        sensitivityValueText.text = "0,9";
-        sensitivityValueText.fontSize = 18f;
+        sensitivityValueText.text = "0.9";
+        sensitivityValueText.fontSize = 24f;
         sensitivityValueText.fontStyle = FontStyles.Bold;
         sensitivityValueText.color = new Color(1f, 0.67f, 0f, 1f);
-        sensitivityValueText.alignment = TextAlignmentOptions.MidlineLeft;
+        sensitivityValueText.alignment = TextAlignmentOptions.Center;
+        sensitivityValueText.raycastTarget = false;
+
         LayoutElement valueLE = valueObj.AddComponent<LayoutElement>();
-        valueLE.preferredWidth = 50f;
-        valueLE.preferredHeight = 28f;
+        valueLE.preferredWidth = 55f;
+        valueLE.preferredHeight = 35f;
 
-        // Spacer
-        AddSpacer(contentRoot.transform, 80f);
+        // Ayırıcı
+        GameObject btnSeparator = MakeObj("BtnSeparator", contentRoot.transform);
+        Image btnSepImg = btnSeparator.AddComponent<Image>();
+        btnSepImg.color = new Color(1f, 1f, 1f, 0.05f);
+        btnSepImg.raycastTarget = false;
+        
+        LayoutElement btnSepLE = btnSeparator.AddComponent<LayoutElement>();
+        btnSepLE.preferredHeight = 3f;
 
         // ============================================================
-        // 4) ALT YEŞİL BAR (DEVAM ET | Müziği Kapa)
+        // 4) DİKEY BUTONLAR
         // ============================================================
-        GameObject bar = MakeObj("ButtonBar", contentRoot.transform);
-        Image barImg = bar.AddComponent<Image>();
-        barImg.color = new Color(0.16f, 0.62f, 0.25f, 1f); // Yeşil
-        LayoutElement barLE = bar.AddComponent<LayoutElement>();
-        barLE.preferredHeight = 46f;
-        barLE.preferredWidth = 400f;
+        // Devam Et Butonu
+        resumeButton = CreateStyledButton(contentRoot.transform, "ResumeBtn", "Devam Et", new Color(0.16f, 0.62f, 0.25f, 1f));
 
-        HorizontalLayoutGroup barHL = bar.AddComponent<HorizontalLayoutGroup>();
-        barHL.childAlignment = TextAnchor.MiddleCenter;
-        barHL.childControlWidth = true;
-        barHL.childControlHeight = true;
-        barHL.childForceExpandWidth = true;
-        barHL.childForceExpandHeight = true;
-        barHL.spacing = 0f;
-        barHL.padding = new RectOffset(0, 0, 0, 0);
-
-        // ContentSizeFitter ile barın layout'a uymasını sağla
-        ContentSizeFitter barFitter = bar.AddComponent<ContentSizeFitter>();
-        barFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        barFitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
-
-        // DEVAM ET butonu
-        resumeButton = MakeBarButton(bar.transform, "ResumeBtn", "DEVAM ET");
-
-        // Dikey ayırıcı
-        GameObject divider = MakeObj("Divider", bar.transform);
-        Image divImg = divider.AddComponent<Image>();
-        divImg.color = new Color(1f, 1f, 1f, 0.25f);
-        LayoutElement divLE = divider.AddComponent<LayoutElement>();
-        divLE.preferredWidth = 2f;
-        divLE.flexibleWidth = 0f;
-
-        // Müziği Kapa butonu
-        muteButton = MakeBarButton(bar.transform, "MuteBtn", "Müziği Kapa");
+        // Müziği Kapa Butonu
+        muteButton = CreateStyledButton(contentRoot.transform, "MuteBtn", "Müziği Kapa", new Color(0.22f, 0.24f, 0.28f, 1f));
         muteButtonText = muteButton.GetComponentInChildren<TextMeshProUGUI>();
     }
 
@@ -185,13 +194,6 @@ public class PauseMenuUI : MonoBehaviour
         return go;
     }
 
-    private void AddSpacer(Transform parent, float h)
-    {
-        GameObject sp = MakeObj("Spacer", parent);
-        LayoutElement le = sp.AddComponent<LayoutElement>();
-        le.preferredHeight = h;
-    }
-
     private GameObject BuildSlider(Transform parent)
     {
         GameObject sliderGO = MakeObj("Slider", parent);
@@ -199,24 +201,32 @@ public class PauseMenuUI : MonoBehaviour
         // Background (track)
         GameObject bg = MakeObj("Background", sliderGO.transform);
         Image bgImg = bg.AddComponent<Image>();
-        bgImg.color = new Color(0.45f, 0.45f, 0.5f, 0.7f);
+        bgImg.sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/Background.psd");
+        bgImg.type = Image.Type.Sliced;
+        bgImg.color = new Color(1f, 1f, 1f, 0.1f);
+        bgImg.raycastTarget = true;
+        
         RectTransform bgRT = bg.GetComponent<RectTransform>();
-        bgRT.anchorMin = new Vector2(0f, 0.35f);
-        bgRT.anchorMax = new Vector2(1f, 0.65f);
+        bgRT.anchorMin = new Vector2(0f, 0.38f);
+        bgRT.anchorMax = new Vector2(1f, 0.62f);
         bgRT.offsetMin = Vector2.zero;
         bgRT.offsetMax = Vector2.zero;
 
         // Fill Area
         GameObject fillArea = MakeObj("Fill Area", sliderGO.transform);
         RectTransform faRT = fillArea.GetComponent<RectTransform>();
-        faRT.anchorMin = new Vector2(0f, 0.35f);
-        faRT.anchorMax = new Vector2(1f, 0.65f);
+        faRT.anchorMin = new Vector2(0f, 0.38f);
+        faRT.anchorMax = new Vector2(1f, 0.62f);
         faRT.offsetMin = new Vector2(5f, 0f);
         faRT.offsetMax = new Vector2(-5f, 0f);
 
         GameObject fill = MakeObj("Fill", fillArea.transform);
         Image fillImg = fill.AddComponent<Image>();
-        fillImg.color = new Color(0.35f, 0.35f, 0.4f, 0.5f);
+        fillImg.sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/Background.psd");
+        fillImg.type = Image.Type.Sliced;
+        fillImg.color = new Color(1f, 0.67f, 0f, 0.65f);
+        fillImg.raycastTarget = false;
+        
         RectTransform fillRT = fill.GetComponent<RectTransform>();
         fillRT.anchorMin = Vector2.zero;
         fillRT.anchorMax = Vector2.one;
@@ -231,14 +241,28 @@ public class PauseMenuUI : MonoBehaviour
         haRT.offsetMin = new Vector2(10f, 0f);
         haRT.offsetMax = new Vector2(-10f, 0f);
 
-        // Handle
-        GameObject handle = MakeObj("Handle", handleArea.transform);
-        Image handleImg = handle.AddComponent<Image>();
+        // Handle (Görünmez Taşıyıcı / Dummy Handle)
+        GameObject handleDummy = MakeObj("Handle", handleArea.transform);
+        RectTransform handleRT = handleDummy.GetComponent<RectTransform>();
+        handleRT.anchorMin = new Vector2(0f, 0f);
+        handleRT.anchorMax = new Vector2(0f, 1f);
+        handleRT.offsetMin = Vector2.zero;
+        handleRT.offsetMax = Vector2.zero;
+
+        // Görsel Daire (Visual Knob) - Dummy'nin içinde ortalanmış ve esnemeyen daire
+        GameObject handleVisual = MakeObj("HandleVisual", handleDummy.transform);
+        Image handleImg = handleVisual.AddComponent<Image>();
+        handleImg.sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/Knob.psd");
         handleImg.color = Color.white;
-        RectTransform handleRT = handle.GetComponent<RectTransform>();
-        handleRT.sizeDelta = new Vector2(18f, 18f);
-        handleRT.anchorMin = new Vector2(0f, 0.5f);
-        handleRT.anchorMax = new Vector2(0f, 0.5f);
+        handleImg.raycastTarget = true;
+        handleImg.preserveAspect = true;
+
+        RectTransform visualRT = handleVisual.GetComponent<RectTransform>();
+        visualRT.anchorMin = new Vector2(0.5f, 0.5f);
+        visualRT.anchorMax = new Vector2(0.5f, 0.5f);
+        visualRT.pivot = new Vector2(0.5f, 0.5f);
+        visualRT.sizeDelta = new Vector2(24f, 24f); // "bi tık yine büyük olsun çok küçük olmasın ama büyükte olmasın"
+        visualRT.anchoredPosition = Vector2.zero;
 
         // Slider bileşeni
         Slider slider = sliderGO.AddComponent<Slider>();
@@ -250,36 +274,47 @@ public class PauseMenuUI : MonoBehaviour
         slider.maxValue = 5f;
         slider.value = 0.9f;
 
-        sensitivitySlider = slider;
         return sliderGO;
     }
 
-    private Button MakeBarButton(Transform parent, string name, string label)
+    private Button CreateStyledButton(Transform parent, string name, string label, Color bgColor)
     {
         GameObject btnGO = MakeObj(name, parent);
+        LayoutElement btnLE = btnGO.AddComponent<LayoutElement>();
+        btnLE.preferredHeight = 62f;
+        btnLE.preferredWidth = 420f;
 
-        // Şeffaf arka plan (yeşil bar zaten arka planda)
         Image btnImg = btnGO.AddComponent<Image>();
-        btnImg.color = new Color(0, 0, 0, 0);
+        btnImg.sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/Background.psd");
+        btnImg.type = Image.Type.Sliced;
+        btnImg.color = bgColor;
+        btnImg.raycastTarget = true;
 
         Button btn = btnGO.AddComponent<Button>();
+        
         ColorBlock cb = btn.colors;
-        cb.normalColor = new Color(1, 1, 1, 0);
-        cb.highlightedColor = new Color(1, 1, 1, 0.1f);
-        cb.pressedColor = new Color(0, 0, 0, 0.15f);
-        cb.selectedColor = new Color(1, 1, 1, 0);
-        cb.fadeDuration = 0.1f;
+        cb.normalColor = bgColor;
+        cb.highlightedColor = bgColor + new Color(0.08f, 0.08f, 0.08f, 0f);
+        cb.pressedColor = bgColor - new Color(0.12f, 0.12f, 0.12f, 0f);
+        cb.selectedColor = cb.highlightedColor;
+        cb.fadeDuration = 0.08f;
         btn.colors = cb;
         btn.targetGraphic = btnImg;
 
-        // Metin
+        Outline btnOutline = btnGO.AddComponent<Outline>();
+        btnOutline.effectColor = new Color(0f, 0f, 0f, 0.15f);
+        btnOutline.effectDistance = new Vector2(1f, -1f);
+
+        // Buton Metni
         GameObject txtGO = MakeObj("Text", btnGO.transform);
         TextMeshProUGUI tmp = txtGO.AddComponent<TextMeshProUGUI>();
         tmp.text = label;
-        tmp.fontSize = 18f;
+        tmp.fontSize = 25f;
         tmp.fontStyle = FontStyles.Bold;
         tmp.color = Color.white;
         tmp.alignment = TextAlignmentOptions.Center;
+        tmp.raycastTarget = false;
+        
         RectTransform txtRT = txtGO.GetComponent<RectTransform>();
         txtRT.anchorMin = Vector2.zero;
         txtRT.anchorMax = Vector2.one;

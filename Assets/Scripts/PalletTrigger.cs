@@ -64,29 +64,42 @@ public class PalletTrigger : MonoBehaviour
                 else
                     Debug.Log($"HATALI KARAR: Kusurlu kutu ({box.CurrentDefect}) kabul paletine bırakıldı!");
             }
-            else
+            // Ağırlık kontrolü: 6. gün ve sonrasında 10 kg üstü kutular RET'e gitmeli
+            else if (DayManager.Instance != null)
             {
-                // Normal kutular için gün kurallarını kontrol et
-                if (GameManager.Instance != null && GameManager.Instance.DailyRules != null && 
-                    GameManager.Instance.DailyRules.TryGetValue(box.Shape, out var targetPallet))
+                DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+                if (config.allowWeightDefect && box.Weight >= 10.0f)
                 {
-                    isCorrect = (palletType == targetPallet);
+                    isCorrect = (palletType == PalletType.Ret);
                     if (isCorrect)
-                        Debug.Log($"DOĞRU KARAR: {box.Shape} kutu doğru palete ({palletType}) bırakıldı.");
+                        Debug.Log($"DOĞRU KARAR: Ağır kutu ({box.Weight:F1} kg) ret paletine bırakıldı.");
                     else
-                        Debug.Log($"HATALI KARAR: {box.Shape} kutu yanlış palete ({palletType}) bırakıldı! Hedef: {targetPallet}");
+                        Debug.Log($"HATALI KARAR: Ağır kutu ({box.Weight:F1} kg) kabul paletine bırakıldı!");
                 }
                 else
                 {
-                    // Varsayılan kontrol
-                    bool isDefective = box.IsDefective;
-                    if (palletType == PalletType.Kabul)
+                    // Normal kutular için gün kurallarını kontrol et
+                    if (GameManager.Instance != null && GameManager.Instance.DailyRules != null && 
+                        GameManager.Instance.DailyRules.TryGetValue(box.Shape, out var targetPallet))
                     {
-                        isCorrect = !isDefective;
+                        isCorrect = (palletType == targetPallet);
+                        if (isCorrect)
+                            Debug.Log($"DOĞRU KARAR: {box.Shape} kutu doğru palete ({palletType}) bırakıldı.");
+                        else
+                            Debug.Log($"HATALI KARAR: {box.Shape} kutu yanlış palete ({palletType}) bırakıldı! Hedef: {targetPallet}");
                     }
                     else
                     {
-                        isCorrect = isDefective;
+                        // Varsayılan kontrol
+                        bool isDefective = box.IsDefective;
+                        if (palletType == PalletType.Kabul)
+                        {
+                            isCorrect = !isDefective;
+                        }
+                        else
+                        {
+                            isCorrect = isDefective;
+                        }
                     }
                 }
             }

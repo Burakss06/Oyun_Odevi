@@ -1,9 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// Ekranın ortasına sadece küçük, temiz ve dinamik bir nokta ekler.
 /// Kutuya bakıldığında yeşil olur ve hafifçe büyür. Kutu taşınırken küçülür/solur.
+/// Ayrıca etkileşim ipuçlarını (Prompts) ekranın ortasında gösterir.
 /// </summary>
 public class CrosshairUI : MonoBehaviour
 {
@@ -26,6 +28,7 @@ public class CrosshairUI : MonoBehaviour
 
     private Image dotImage;
     private RectTransform dotRect;
+    private TextMeshProUGUI promptText;
 
     // Dinamik Değerler (Lerp için)
     private Color currentColor;
@@ -61,23 +64,59 @@ public class CrosshairUI : MonoBehaviour
 
     private void UpdateCrosshairDynamics()
     {
-        bool isHovering = playerInteraction != null && playerInteraction.IsHoveringInteractable;
-        bool isHolding = playerInteraction != null && playerInteraction.IsHoldingObject;
+        if (playerInteraction == null) return;
+
+        bool isLookingAtScale = playerInteraction.IsLookingAtScale;
+        bool isHovering = playerInteraction.IsHoveringInteractable;
+        bool isHolding = playerInteraction.IsHoldingObject;
 
         Color targetColor = normalColor;
         float targetDotSize = normalDotSize;
+        string targetPrompt = "";
 
         if (isHolding)
         {
-            // Kutu taşırken çok küçük ve soluk nokta
-            targetColor = holdingColor;
-            targetDotSize = holdingDotSize;
+            if (isLookingAtScale)
+            {
+                WeighingScale scale = playerInteraction.LookedAtScale;
+                if (scale != null && !scale.HasBox)
+                {
+                    targetPrompt = "[E] Tartıya Koy";
+                    targetColor = hoverColor;
+                    targetDotSize = hoverDotSize;
+                }
+                else
+                {
+                    targetColor = holdingColor;
+                    targetDotSize = holdingDotSize;
+                }
+            }
+            else
+            {
+                // Kutu taşırken çok küçük ve soluk nokta
+                targetColor = holdingColor;
+                targetDotSize = holdingDotSize;
+            }
         }
-        else if (isHovering)
+        else
         {
-            // Kutuya bakarken yeşile dönsün ve hafifçe büyüsün
-            targetColor = hoverColor;
-            targetDotSize = hoverDotSize;
+            if (isLookingAtScale)
+            {
+                WeighingScale scale = playerInteraction.LookedAtScale;
+                if (scale != null && scale.HasBox)
+                {
+                    targetPrompt = "[E] Kutuyu Al";
+                    targetColor = hoverColor;
+                    targetDotSize = hoverDotSize;
+                }
+            }
+            else if (isHovering)
+            {
+                // Kutuya bakarken yeşile dönsün ve hafifçe büyüsün
+                targetPrompt = "[E] Kaldır";
+                targetColor = hoverColor;
+                targetDotSize = hoverDotSize;
+            }
         }
 
         // Pürüzsüz geçiş (Lerp)
@@ -87,6 +126,7 @@ public class CrosshairUI : MonoBehaviour
         // Değerleri Uygula
         if (dotImage != null) dotImage.color = currentColor;
         if (dotRect != null) dotRect.sizeDelta = new Vector2(currentDotSize, currentDotSize);
+        if (promptText != null) promptText.text = targetPrompt;
     }
 
     private void CreateCrosshair()
@@ -128,5 +168,27 @@ public class CrosshairUI : MonoBehaviour
         Shadow shadow = dotObj.AddComponent<Shadow>();
         shadow.effectColor = new Color(0f, 0f, 0f, 0.4f);
         shadow.effectDistance = new Vector2(1f, -1f);
+
+        // Etkileşim Yazısı (Prompt Text)
+        GameObject promptObj = new GameObject("PromptText", typeof(RectTransform));
+        promptObj.transform.SetParent(rootRect, false);
+        
+        RectTransform promptRect = promptObj.GetComponent<RectTransform>();
+        promptRect.anchorMin = new Vector2(0.5f, 0.5f);
+        promptRect.anchorMax = new Vector2(0.5f, 0.5f);
+        promptRect.anchoredPosition = new Vector2(0f, -45f);
+        promptRect.sizeDelta = new Vector2(500f, 50f);
+
+        promptText = promptObj.AddComponent<TextMeshProUGUI>();
+        promptText.alignment = TextAlignmentOptions.Center;
+        promptText.fontSize = 22f;
+        promptText.color = Color.white;
+        promptText.fontStyle = FontStyles.Bold;
+        promptText.text = "";
+        promptText.raycastTarget = false;
+
+        // Yazıya da okunabilirlik için gölge ekleyelim (Outline)
+        promptText.outlineColor = new Color32(0, 0, 0, 255);
+        promptText.outlineWidth = 0.2f;
     }
 }
