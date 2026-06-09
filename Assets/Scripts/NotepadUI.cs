@@ -270,6 +270,12 @@ public class NotepadUI : MonoBehaviour
 
         // Günlük fiziksel hata kuralları
         DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+        if (config.allowBarcodeDefect && GameManager.Instance != null)
+        {
+            string validNum = GameManager.Instance.ValidBarcodeNumber;
+            text += $"• Geçerli Barkod: <b><color=#1565C0>{validNum}</color></b>\n";
+            text += $"• Farklı numaralı barkod ➔ <b><color=#C62828>RET</color></b>\n";
+        }
         if (config.allowWrongColorDefect)
         {
             text += $"• Kırmızı Boyalı ➔ <b><color=#C62828>RET</color></b>\n";
@@ -282,7 +288,7 @@ public class NotepadUI : MonoBehaviour
         {
             text += $"• Ağır Kutu (≥10kg) ➔ <b><color=#C62828>RET</color></b> (Tart!)\n";
         }
-        if (currentDay == 5)
+        if (currentDay == 7)
         {
             text += $"• Mor Kutu ➔ Sürpriz (%50 Şans)\n";
         }

@@ -173,29 +173,37 @@ public class PowerUpManager : MonoBehaviour
 
         Bounds bounds = spawnArea.bounds;
         
-        // Raf veya kutuların içine/üstüne denk gelmemesi için 30 defaya kadar boş yer ara
-        for (int i = 0; i < 30; i++)
+        // Raf veya kutuların içine/üstüne veya banta denk gelmemesi için 50 defaya kadar boş yer ara
+        for (int i = 0; i < 50; i++)
         {
             float rx = Random.Range(bounds.min.x, bounds.max.x);
             float rz = Random.Range(bounds.min.z, bounds.max.z);
             
-            // Seçilen noktanın 10 metre yukarısından aşağıya doğru bir ışın gönder (Raycast)
+            // Seçilen noktanın 10 metre yukarısından aşağıya doğru bir ışın gönder
             Vector3 rayStart = new Vector3(rx, bounds.max.y + 10f, rz);
             
-            // Eğer ışın bir cisme çarparsa ve bu cisim yere çok yakınsa (Yüksekliği < 0.3f ise bu zemindir)
-            // Eğer çarptığı şey raf veya kutuysa, hit.point.y daha yüksek olacaktır (örneğin 1.5f).
             if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 30f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
             {
-                if (hit.point.y < 0.3f)
+                // Çarptığı obje zemin olmalı (yüksekliği düşük). Bant veya kutu olmamalı.
+                string hitName = hit.collider.gameObject.name.ToLower();
+                bool isBeltOrBox = hitName.Contains("belt") || hitName.Contains("conveyor") || hitName.Contains("box") || hitName.Contains("kutu");
+
+                if (hit.point.y < 0.5f && !isBeltOrBox)
                 {
-                    // Tamamen açık bir alan bulduk!
-                    return new Vector3(rx, 0.85f, rz); // Yüksekliği ince ayar yaptık (0.85f)
+                    Vector3 potentialPos = new Vector3(rx, 0.85f, rz);
+
+                    // Ekstra güvenlik: Etrafında yarım metre çapında kutu veya bant var mı diye kontrol et
+                    if (!Physics.CheckSphere(potentialPos, 0.4f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
+                    {
+                        return potentialPos; // Güvenli alan!
+                    }
                 }
             }
         }
 
-        // Eğer 30 denemede bulamazsa, en azından merkeze yakın risksiz bir yer ver
-        return new Vector3(Random.Range(-2f, 2f), 0.85f, Random.Range(-2f, 2f));
+        // Eğer 50 denemede bulamazsa, sahnenin tamamen dışına / çok güvenli köşelere atmaktansa
+        // belirli ve genelde boş olan sabit bir koordinata gönderelim (Örn: Hangarin sol köşesi)
+        return new Vector3(-3f, 0.85f, -3f);
     }
 
     private PowerUpController GetPooledPowerUp()

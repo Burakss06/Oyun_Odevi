@@ -51,6 +51,7 @@ public class PalletTrigger : MonoBehaviour
             if (DayManager.Instance != null && box.CurrentDefect != BoxController.DefectType.None)
             {
                 DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+                if (config.allowBarcodeDefect && box.CurrentDefect == BoxController.DefectType.BarcodeAnomaly) hasActiveDefect = true;
                 if (config.allowWrongColorDefect && box.CurrentDefect == BoxController.DefectType.WrongColor) hasActiveDefect = true;
                 if (config.allowSizeAnomalyDefect && box.CurrentDefect == BoxController.DefectType.SizeAnomaly) hasActiveDefect = true;
             }

@@ -59,6 +59,7 @@ public class GameManager : MonoBehaviour
     public int TotalProcessedBoxes { get; private set; }
 
     public System.Collections.Generic.Dictionary<BoxController.BoxShape, PalletTrigger.PalletType> DailyRules { get; private set; }
+    public string ValidBarcodeNumber { get; private set; } = "";
 
     private Button muteButton;
     private bool isMuted = false;
@@ -179,6 +180,13 @@ public class GameManager : MonoBehaviour
                 DailyRules[BoxController.BoxShape.Unfolded] = unfoldedPallet;
                 validRoll = true;
             }
+        }
+
+        // Barkod günü aktifse yeni geçerli barkod numarası belirle
+        DayConfig cfg = DayManager.Instance.GetCurrentDayConfig();
+        if (cfg.allowBarcodeDefect)
+        {
+            ValidBarcodeNumber = Random.Range(1000000, 9999999).ToString();
         }
     }
 
@@ -331,6 +339,10 @@ public class GameManager : MonoBehaviour
             }
 
             // Ekstra fiziksel hataları ve sürpriz kutuyu ekle
+            if (config.allowBarcodeDefect)
+            {
+                rulesText += $"- BARKOD KURALI: Barkod numarası <b>{ValidBarcodeNumber}</b> olan kutuları KABUL et. Farklı numaralı kutuları RET paletine bırak.\n";
+            }
             if (config.allowWrongColorDefect)
             {
                 rulesText += "- Kırmızı boyalı hatalı kutuları RET paletine yerleştir.\n";
@@ -339,13 +351,13 @@ public class GameManager : MonoBehaviour
             {
                 rulesText += "- Boyut hatası (çok küçük/büyük) olan kutuları RET paletine yerleştir.\n";
             }
-            if (config.dayNumber == 5)
-            {
-                rulesText += "- SÜRPRİZ KUTU UYARISI: Mor renkli Sürpriz Kutular gelebilir! Nereye koyarsan koy %50 şansla doğru veya yanlış sayılacaktır.\n";
-            }
             if (config.allowWeightDefect)
             {
                 rulesText += "- AĞIRLIK KURALI: Kutuları tartıda tart! 10.0 kg ve üzeri ağır kutuları RET paletine yerleştir!\n";
+            }
+            if (config.dayNumber == 7)
+            {
+                rulesText += "- SÜRPRİZ KUTU UYARISI: Mor renkli Sürpriz Kutular gelebilir! Nereye koyarsan koy %50 şansla doğru veya yanlış sayılacaktır.\n";
             }
 
             briefingContentText.text = $"Hedef: Toplam {config.totalBoxesToSpawn} kutunun kontrolünü yap.\n" +
@@ -531,7 +543,7 @@ public class GameManager : MonoBehaviour
         
         if (isSuccess)
         {
-            if (config.dayNumber == 6)
+            if (config.dayNumber == 7)
             {
                 TriggerGameWin();
                 return;
@@ -583,7 +595,7 @@ public class GameManager : MonoBehaviour
 
         // Metin rengini YEŞİL yap
         gameOverText.color = Color.green;
-        gameOverText.text = $"TEBRİKLER! OYUNU KAZANDINIZ\n\n6 günlük fabrika kalite kontrol vardiyasını başarıyla tamamladın ve usta bir fabrika işçisi olduğunu kanıtladın!\n\nToplam Doğru: {Score}\nYaptığın Toplam Hata: {Errors}\n\nYeniden başlamak için aşağıdaki butonu kullanabilirsin.";
+        gameOverText.text = $"TEBRİKLER! OYUNU KAZANDINIZ\n\n7 günlük fabrika kalite kontrol vardiyasını başarıyla tamamladın ve usta bir fabrika işçisi olduğunu kanıtladın!\n\nToplam Doğru: {Score}\nYaptığın Toplam Hata: {Errors}\n\nYeniden başlamak için aşağıdaki butonu kullanabilirsin.";
     }
 
     public void TriggerGameOver(string reason)

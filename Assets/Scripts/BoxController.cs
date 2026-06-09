@@ -13,7 +13,7 @@ public class BoxController : MonoBehaviour
     public enum DefectType
     {
         None,          // Sağlam (Kusursuz)
-        Damaged,       // Ezik / Kırık
+        BarcodeAnomaly,// Hatalı Barkod
         WrongColor,    // Yanlış Renk
         SizeAnomaly    // Boyut Hatası (Çok büyük veya çok küçük)
     }
@@ -24,6 +24,7 @@ public class BoxController : MonoBehaviour
     
     public BoxShape Shape { get; set; } = BoxShape.Closed;
     public bool isMysteryBox = false;
+    public string BarcodeNumber { get; private set; } = "";
 
     [Header("Ağırlık Bilgisi")]
     [SerializeField] private float weight = 5.0f;
@@ -54,6 +55,7 @@ public class BoxController : MonoBehaviour
             if (DayManager.Instance != null)
             {
                 DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+                if (config.allowBarcodeDefect && currentDefect == DefectType.BarcodeAnomaly) hasActiveDefect = true;
                 if (config.allowWrongColorDefect && currentDefect == DefectType.WrongColor) hasActiveDefect = true;
                 if (config.allowSizeAnomalyDefect && currentDefect == DefectType.SizeAnomaly) hasActiveDefect = true;
                 // Ağırlık hatası: 10 kg ve üzeri kutular defolu sayılır
@@ -89,7 +91,7 @@ public class BoxController : MonoBehaviour
         {
             // O gün aktif olan kusur türlerini listele
             List<DefectType> allowedDefects = new List<DefectType>();
-            if (config.allowDamagedDefect) allowedDefects.Add(DefectType.Damaged);
+            if (config.allowBarcodeDefect) allowedDefects.Add(DefectType.BarcodeAnomaly);
             if (config.allowWrongColorDefect) allowedDefects.Add(DefectType.WrongColor);
             if (config.allowSizeAnomalyDefect) allowedDefects.Add(DefectType.SizeAnomaly);
 
@@ -126,33 +128,208 @@ public class BoxController : MonoBehaviour
             weight = Random.Range(3.0f, 8.0f); // Standart günler
         }
 
+        // Barkod günü aktifse tüm kutulara barkod numarası ata
+        if (config.allowBarcodeDefect && GameManager.Instance != null)
+        {
+            string validNum = GameManager.Instance.ValidBarcodeNumber;
+            if (currentDefect == DefectType.BarcodeAnomaly)
+            {
+                // Hatalı kutu: geçerli numaradan farklı rastgele 7 haneli numara
+                string invalid;
+                do { invalid = Random.Range(1000000, 9999999).ToString(); }
+                while (invalid == validNum);
+                BarcodeNumber = invalid;
+            }
+            else
+            {
+                // Sağlam kutu: geçerli barkod numarası
+                BarcodeNumber = validNum;
+            }
+        }
+
         // Kusurun görsel etkilerini uygula
         ApplyVisualDefect();
+
+        // Kutu kapağı açıksa (Opened veya Unfolded), içini kodla doldur
+        if (Shape != BoxShape.Closed)
+        {
+            FillBoxWithItems();
+        }
+    }
+
+    private void CreateBarcodeUI()
+    {
+        // Kutunun gerçek fiziksel boyutlarını al (Renderer'dan) - Bu yöntem daha önce doğru çalışıyordu
+        Renderer boxRenderer = GetComponentInChildren<Renderer>();
+        Bounds bounds = (boxRenderer != null) ? boxRenderer.bounds : new Bounds(transform.position, Vector3.one);
+
+        // Yerel Z boyutu ile ön yüzeye tam yapış
+        float halfDepthLocal = bounds.extents.z / transform.lossyScale.z;
+
+        // TextMesh nesnesi oluştur
+        GameObject labelObj = new GameObject("BarcodeLabel");
+        labelObj.transform.SetParent(transform);
+
+        // Sağ alt köşeye yerleştir (X: sağa, Y: aşağıya doğru kaydır)
+        float halfWidthLocal  = bounds.extents.x / transform.lossyScale.x;
+        float halfHeightLocal = bounds.extents.y / transform.lossyScale.y;
+        
+        // İlk çalışan versiyondaki pozisyon hesabı
+        labelObj.transform.localPosition = new Vector3(
+            halfWidthLocal  * 0.55f,   // sağ
+           -halfHeightLocal * 0.55f,   // aşağı
+           -(halfDepthLocal + 0.001f)  // ön yüzey
+        );
+        labelObj.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
+        labelObj.transform.localScale = new Vector3(0.15f, 0.15f, 0.15f);
+
+        TextMesh tm = labelObj.AddComponent<TextMesh>();
+        tm.anchor = TextAnchor.MiddleCenter;
+        tm.alignment = TextAlignment.Center;
+        tm.characterSize = 0.1f;
+        tm.fontSize = 35; // Kullanıcı biraz daha büyük istemişti, 26'dan 35'e çıkardım
+
+        // Tüm barkodlar aynı renk ve aynı format - sadece numara farklı
+        string displayNum = (BarcodeNumber != "") ? BarcodeNumber : Random.Range(1000000, 9999999).ToString();
+        tm.text = "|| | ||| | ||\n" + displayNum;
+        tm.color = Color.black; // Tam siyah
+
+        MeshRenderer meshRen = labelObj.GetComponent<MeshRenderer>();
+        if (meshRen != null)
+        {
+            // Derinlik testini düzelten custom shader'ı uygula
+            Shader depthShader = Shader.Find("Custom/TextDepthTested");
+            if (depthShader != null)
+            {
+                Material mat = new Material(meshRen.sharedMaterial);
+                mat.shader = depthShader;
+                meshRen.material = mat;
+            }
+            
+            meshRen.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            meshRen.receiveShadows = false;
+        }
+    }
+
+    private void FillBoxWithItems()
+    {
+        BoxCollider col = GetComponent<BoxCollider>();
+        if (col == null) col = GetComponentInChildren<BoxCollider>();
+        if (col == null) return;
+
+        GameObject contentsRoot = new GameObject("Contents");
+        contentsRoot.transform.SetParent(transform, false);
+        contentsRoot.transform.localPosition = col.center;
+
+        int itemCount = Random.Range(4, 8); // Daha fazla eşya, daha dolu görünsün
+        
+        // ÖNEMLİ DÜZELTME: Açık kutuların collider'ı kapakları da içerdiği için dışarı taşıyorlardı.
+        // Bu yüzden standart bir kutunun gerçek iç hacmini (extents) sabit olarak tanımlıyoruz.
+        Vector3 innerExtents = new Vector3(0.20f, 0.16f, 0.13f); 
+        float bottomY = -innerExtents.y + 0.02f; // Kutunun tabanı (çok az yukarıdan başlat)
+
+        Color[] colors = {
+            new Color(0.2f, 0.4f, 0.8f),
+            new Color(0.8f, 0.2f, 0.2f),
+            new Color(0.2f, 0.7f, 0.3f),
+            new Color(0.9f, 0.7f, 0.1f),
+            new Color(0.6f, 0.2f, 0.8f),
+            new Color(1.0f, 0.5f, 0.0f)
+        };
+
+        System.Collections.Generic.List<Bounds> placedItems = new System.Collections.Generic.List<Bounds>();
+
+        for (int i = 0; i < itemCount; i++)
+        {
+            PrimitiveType type = (Random.value > 0.5f) ? PrimitiveType.Cylinder : PrimitiveType.Cube;
+            
+            // Eşyaları oransal değil sabit ebatlarla belirledik, böylece hem dolgun hem gerçekçi olacak
+            float scaleX = Random.Range(0.12f, 0.18f);
+            float scaleY = Random.Range(0.08f, 0.14f); // Eskisinden çok daha kalın ve dolgun
+            float scaleZ = Random.Range(0.12f, 0.18f);
+
+            float maxRadius = Mathf.Max(scaleX, scaleZ) * 0.75f; 
+
+            // İç duvardan güvenli mesafe
+            float maxPosX = Mathf.Max(0, innerExtents.x - maxRadius);
+            float maxPosZ = Mathf.Max(0, innerExtents.z - maxRadius);
+
+            bool isPlaced = false;
+            Vector3 finalPos = Vector3.zero;
+            Bounds proposedBounds = new Bounds();
+
+            // Çakışmayan bir yer bulmak için en fazla 25 kez dene
+            for (int attempt = 0; attempt < 25; attempt++)
+            {
+                float posX = Random.Range(-maxPosX, maxPosX);
+                float posZ = Random.Range(-maxPosZ, maxPosZ);
+                
+                // Kutunun daha dolu görünmesi için eşyaların üst üste binmesine olanak tanı (Y ekseninde)
+                float posY = bottomY + (scaleY * 0.5f) + Random.Range(0f, 0.15f);
+
+                finalPos = new Vector3(posX, posY, posZ);
+                // Çarpışma kutusunu biraz daralttık ki eşyalar birbirine iyice yanaşsın, kutu dolsun
+                proposedBounds = new Bounds(finalPos, new Vector3(scaleX, scaleY, scaleZ) * 1.05f); 
+
+                bool overlaps = false;
+                foreach (Bounds b in placedItems)
+                {
+                    if (b.Intersects(proposedBounds))
+                    {
+                        overlaps = true;
+                        break;
+                    }
+                }
+
+                if (!overlaps)
+                {
+                    isPlaced = true;
+                    placedItems.Add(proposedBounds);
+                    break;
+                }
+            }
+
+            // Eğer sığmazsa bu objeyi atla
+            if (!isPlaced) continue;
+
+            GameObject item = GameObject.CreatePrimitive(type);
+            Destroy(item.GetComponent<Collider>());
+            item.transform.SetParent(contentsRoot.transform, false);
+            item.transform.localScale = new Vector3(scaleX, scaleY, scaleZ);
+            item.transform.localPosition = finalPos;
+            
+            item.transform.localRotation = Quaternion.Euler(
+                (type == PrimitiveType.Cube) ? Random.Range(-10f, 10f) : 90f,
+                Random.Range(0f, 360f),
+                (type == PrimitiveType.Cube) ? Random.Range(-10f, 10f) : 0f
+            );
+
+            MeshRenderer ren = item.GetComponent<MeshRenderer>();
+            if (ren != null)
+            {
+                Material mat = new Material(ren.sharedMaterial);
+                mat.color = colors[Random.Range(0, colors.Length)];
+                ren.material = mat;
+            }
+        }
     }
 
     private void ApplyVisualDefect()
     {
+        // Barkod günü ise her kutuya barkod etiketi ekle
+        if (DayManager.Instance != null && DayManager.Instance.GetCurrentDayConfig().allowBarcodeDefect)
+        {
+            CreateBarcodeUI();
+        }
+
         switch (currentDefect)
         {
             case DefectType.None:
                 // Kusursuz kutu
                 break;
 
-            case DefectType.Damaged:
-                // Ezik / Kırık Görünümü:
-                // Kutuyu belirli bir eksende rastgele ez / yamult ve hafifçe döndür
-                float squashX = Random.Range(0.82f, 0.90f);
-                float squashY = Random.Range(0.68f, 0.78f);
-                float squashZ = Random.Range(1.10f, 1.25f);
-                
-                // Eğer child mesh'ler varsa onları da hafifçe döndürerek kırılmış etkisi yaratabiliriz
-                transform.localScale = new Vector3(originalScale.x * squashX, originalScale.y * squashY, originalScale.z * squashZ);
-                
-                // Rigidbody varsa ağırlık merkezini de bozarak fiziksel dengesizlik hissi verelim
-                if (rb != null)
-                {
-                    rb.centerOfMass = new Vector3(Random.Range(-0.1f, 0.1f), Random.Range(-0.1f, 0f), Random.Range(-0.1f, 0.1f));
-                }
+            case DefectType.BarcodeAnomaly:
+                // Barkod hatası CreateBarcodeUI içinde halledildi
                 break;
 
             case DefectType.WrongColor:

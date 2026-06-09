@@ -11,7 +11,7 @@ public struct DayConfig
     public float dayDuration; // saniye cinsinden
 
     [Header("Kusur Kuralları")]
-    public bool allowDamagedDefect;
+    public bool allowBarcodeDefect;
     public bool allowWrongColorDefect;
     public bool allowSizeAnomalyDefect;
     public bool allowWeightDefect;
@@ -24,7 +24,7 @@ public class DayManager : MonoBehaviour
     [Header("Gün Konfigürasyonları")]
     [SerializeField] private List<DayConfig> dayConfigs = new List<DayConfig>();
 
-    public int CurrentDay { get; private set; } = 1;
+    public int CurrentDay { get; private set; } = 6;
     
     private float timer;
     private bool isTimerRunning = false;
@@ -56,7 +56,7 @@ public class DayManager : MonoBehaviour
                 defectSpawnChance = 0.35f,
                 allowedErrors = 3,
                 dayDuration = 90f,
-                allowDamagedDefect = false,
+                allowBarcodeDefect = false,
                 allowWrongColorDefect = false,
                 allowSizeAnomalyDefect = false
             });
@@ -69,7 +69,7 @@ public class DayManager : MonoBehaviour
                 defectSpawnChance = 0.4f,
                 allowedErrors = 2,
                 dayDuration = 120f,
-                allowDamagedDefect = false,
+                allowBarcodeDefect = false,
                 allowWrongColorDefect = false,
                 allowSizeAnomalyDefect = false
             });
@@ -82,12 +82,12 @@ public class DayManager : MonoBehaviour
                 defectSpawnChance = 0.45f,
                 allowedErrors = 2,
                 dayDuration = 140f,
-                allowDamagedDefect = false,
+                allowBarcodeDefect = false,
                 allowWrongColorDefect = true,
                 allowSizeAnomalyDefect = false
             });
 
-            // 4. Gün: Kapalı, Açık, Düz, Yanlış Renkli ve Boyut anomalili kutular. Hasarlı kapalı.
+            // 4. Gün: Tartı Günü! (Ağır kutular) Boyut hatası ve hasar henüz yok.
             dayConfigs.Add(new DayConfig
             {
                 dayNumber = 4,
@@ -95,12 +95,13 @@ public class DayManager : MonoBehaviour
                 defectSpawnChance = 0.5f,
                 allowedErrors = 2,
                 dayDuration = 160f,
-                allowDamagedDefect = false,
+                allowBarcodeDefect = false,
                 allowWrongColorDefect = true,
-                allowSizeAnomalyDefect = true
+                allowSizeAnomalyDefect = false,
+                allowWeightDefect = true
             });
 
-            // 5. Gün: Kapalı, Açık, Düz, Yanlış Renkli, Boyut anomalili ve Sürpriz kutular. Hasarlı kapalı.
+            // 5. Gün: Boyut Hatası Günü! (Çok küçük/büyük kutular)
             dayConfigs.Add(new DayConfig
             {
                 dayNumber = 5,
@@ -108,13 +109,13 @@ public class DayManager : MonoBehaviour
                 defectSpawnChance = 0.5f,
                 allowedErrors = 2,
                 dayDuration = 180f,
-                allowDamagedDefect = false,
+                allowBarcodeDefect = false,
                 allowWrongColorDefect = true,
                 allowSizeAnomalyDefect = true,
-                allowWeightDefect = false
+                allowWeightDefect = true
             });
 
-            // 6. Gün: TARTI GÜNÜ! Tüm kurallar + ağırlık kontrolü.
+            // 6. Gün: Hasarlı Kutu Günü! (Ezik/Kırık kutular)
             dayConfigs.Add(new DayConfig
             {
                 dayNumber = 6,
@@ -122,7 +123,21 @@ public class DayManager : MonoBehaviour
                 defectSpawnChance = 0.5f,
                 allowedErrors = 2,
                 dayDuration = 200f,
-                allowDamagedDefect = false,
+                allowBarcodeDefect = true,
+                allowWrongColorDefect = true,
+                allowSizeAnomalyDefect = true,
+                allowWeightDefect = true
+            });
+
+            // 7. Gün: Sürpriz Kutu Günü! (Mor kutular) Tüm kurallar aktif.
+            dayConfigs.Add(new DayConfig
+            {
+                dayNumber = 7,
+                totalBoxesToSpawn = 25,
+                defectSpawnChance = 0.55f,
+                allowedErrors = 2,
+                dayDuration = 220f,
+                allowBarcodeDefect = true,
                 allowWrongColorDefect = true,
                 allowSizeAnomalyDefect = true,
                 allowWeightDefect = true
@@ -143,7 +158,7 @@ public class DayManager : MonoBehaviour
                 defectSpawnChance = Mathf.Min(0.6f, lastConfig.defectSpawnChance + 0.02f * (CurrentDay - lastConfig.dayNumber)),
                 allowedErrors = Mathf.Max(1, lastConfig.allowedErrors),
                 dayDuration = lastConfig.dayDuration + 10f,
-                allowDamagedDefect = true,
+                allowBarcodeDefect = true,
                 allowWrongColorDefect = true,
                 allowSizeAnomalyDefect = true,
                 allowWeightDefect = true
@@ -201,7 +216,7 @@ public class DayManager : MonoBehaviour
 
     public void ResetProgress()
     {
-        CurrentDay = 1;
+        CurrentDay = 6;
         isTimerRunning = false;
         timer = 0f;
     }

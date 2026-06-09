@@ -128,8 +128,8 @@ public class BoxSpawner : MonoBehaviour
         {
             boxController.Shape = BoxController.BoxShape.Closed;
             
-            // 5. Gün ve Kapalı kutu ise %25 şansla Sürpriz Kutu (Mystery Box) yap
-            if (DayManager.Instance != null && DayManager.Instance.CurrentDay == 5)
+            // 7. Gün ve Kapalı kutu ise %25 şansla Sürpriz Kutu (Mystery Box) yap
+            if (DayManager.Instance != null && DayManager.Instance.CurrentDay == 7)
             {
                 if (Random.value <= 0.25f)
                 {
