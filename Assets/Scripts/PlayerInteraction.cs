@@ -24,12 +24,15 @@ public class PlayerInteraction : MonoBehaviour
     private LineRenderer outlineLine;
     private Collider playerCollider;
     private WeighingScale lookedAtScale = null;
+    private PalletTrigger lookedAtPallet = null;
 
     // Public getters for UI and crosshair feedback
     public bool IsHoldingObject => heldObject != null;
     public bool IsHoveringInteractable => lastTarget != null;
     public bool IsLookingAtScale => lookedAtScale != null;
     public WeighingScale LookedAtScale => lookedAtScale;
+    public bool IsLookingAtPallet => lookedAtPallet != null;
+    public PalletTrigger LookedAtPallet => lookedAtPallet;
 
     private struct ColliderState
     {
@@ -107,7 +110,7 @@ public class PlayerInteraction : MonoBehaviour
     void Update()
     {
         HandleHighlight();
-        DetectScale();
+        DetectInteractables();
 
         if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
         {
@@ -132,6 +135,11 @@ public class PlayerInteraction : MonoBehaviour
                 {
                     // Tartıya bakıyoruz ve tartı boş -> Tartıya koy
                     PlaceBoxOnScale();
+                }
+                else if (lookedAtPallet != null)
+                {
+                    // Palete bakıyoruz -> Palete bırak
+                    PlaceBoxOnPallet();
                 }
                 else
                 {
@@ -309,20 +317,23 @@ public class PlayerInteraction : MonoBehaviour
     // ========== TARTI ETKİLEŞİMİ ==========
 
     /// <summary>
-    /// Oyuncunun baktığı yönde tartı var mı kontrol eder.
+    /// Oyuncunun baktığı yönde tartı veya palet var mı kontrol eder.
     /// </summary>
-    private void DetectScale()
+    private void DetectInteractables()
     {
         lookedAtScale = null;
+        lookedAtPallet = null;
+
         RaycastHit hit;
         if (Physics.Raycast(playerCamera.position, playerCamera.forward, out hit, scaleInteractionDistance))
         {
             WeighingScale scale = hit.collider.GetComponent<WeighingScale>();
             if (scale == null) scale = hit.collider.GetComponentInParent<WeighingScale>();
-            if (scale != null)
-            {
-                lookedAtScale = scale;
-            }
+            if (scale != null) lookedAtScale = scale;
+
+            PalletTrigger pallet = hit.collider.GetComponent<PalletTrigger>();
+            if (pallet == null) pallet = hit.collider.GetComponentInParent<PalletTrigger>();
+            if (pallet != null) lookedAtPallet = pallet;
         }
     }
 
@@ -342,6 +353,31 @@ public class PlayerInteraction : MonoBehaviour
 
             // Kutuyu tartıya yerleştir
             lookedAtScale.PlaceBox(box);
+
+            // Elimizden bırak
+            heldObject = null;
+            heldRigidbody = null;
+
+            PlaySound(putSound);
+        }
+    }
+
+    /// <summary>
+    /// Kutuyu palete yerleştirir.
+    /// </summary>
+    private void PlaceBoxOnPallet()
+    {
+        if (lookedAtPallet == null || heldObject == null) return;
+
+        BoxController box = heldObject.GetComponent<BoxController>();
+        if (box == null) box = heldObject.GetComponentInParent<BoxController>();
+        if (box != null)
+        {
+            // Önce collision'ı geri yükle
+            SetHeldObjectCollision(heldObject, false);
+
+            // Kutuyu palete yerleştir ve değerlendir
+            lookedAtPallet.PlaceBox(box);
 
             // Elimizden bırak
             heldObject = null;

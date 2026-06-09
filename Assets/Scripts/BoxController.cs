@@ -76,6 +76,7 @@ public class BoxController : MonoBehaviour
 
     public static bool IsSharpEyeActive = false;
     private bool isHighlighted = false;
+    private static GameObject[] officePropsCache;
 
     private void Awake()
     {
@@ -151,9 +152,9 @@ public class BoxController : MonoBehaviour
         ApplyVisualDefect();
 
         // Kutu kapağı açıksa (Opened veya Unfolded), içini kodla doldur
-        if (Shape != BoxShape.Closed)
+        if (Shape == BoxShape.Opened || Shape == BoxShape.Unfolded)
         {
-            FillBoxWithItems();
+            FillBoxWithOfficeProps();
         }
     }
 
@@ -208,6 +209,131 @@ public class BoxController : MonoBehaviour
             
             meshRen.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             meshRen.receiveShadows = false;
+        }
+    }
+
+    private void FillBoxWithOfficeProps()
+    {
+        if (officePropsCache == null)
+        {
+            officePropsCache = Resources.LoadAll<GameObject>("OfficeProps");
+        }
+
+        BoxCollider col = GetComponent<BoxCollider>();
+        if (col == null) col = GetComponentInChildren<BoxCollider>();
+        if (col == null) return;
+
+        GameObject contentsRoot = new GameObject("Contents");
+        contentsRoot.transform.SetParent(transform, false);
+        contentsRoot.transform.localPosition = col.center;
+
+        if (officePropsCache == null || officePropsCache.Length == 0)
+        {
+            Debug.LogWarning("OfficeProps not found in Resources! Returning.");
+            return;
+        }
+
+        int itemCount = 1; // Sadece 1 nesne koy (iç içe geçmeyi önlemek için)
+        Vector3 innerExtents = new Vector3(0.20f, 0.16f, 0.13f); 
+        float bottomY = -innerExtents.y + 0.02f;
+
+        for (int i = 0; i < itemCount; i++)
+        {
+            GameObject prefab;
+            do
+            {
+                prefab = officePropsCache[Random.Range(0, officePropsCache.Length)];
+            } 
+            while (prefab.name.ToLower().Contains("book")); // Kitapları eledik
+            
+            int spawnCount = 1;
+
+            for (int s = 0; s < spawnCount; s++)
+            {
+                GameObject item = Instantiate(prefab, contentsRoot.transform, false);
+                
+                // Remove all colliders so it doesn't affect physics
+                Collider[] cols = item.GetComponentsInChildren<Collider>();
+                foreach (Collider c in cols) Destroy(c);
+
+                item.transform.localRotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
+
+                // Calculate bounds to scale appropriately
+                Renderer[] renderers = item.GetComponentsInChildren<Renderer>();
+                
+                // Fix Pink Material (URP Upgrade)
+                Shader urpShader = Shader.Find("Universal Render Pipeline/Lit");
+                if (urpShader == null) urpShader = Shader.Find("Standard");
+                
+                Color[] colors = {
+                    new Color(0.2f, 0.4f, 0.8f), new Color(0.8f, 0.2f, 0.2f),
+                    new Color(0.2f, 0.7f, 0.3f), new Color(0.9f, 0.7f, 0.1f),
+                    new Color(0.6f, 0.2f, 0.8f), new Color(1.0f, 0.5f, 0.0f),
+                    Color.white, Color.gray
+                };
+                Color randomColor = colors[Random.Range(0, colors.Length)];
+
+                foreach (Renderer r in renderers)
+                {
+                    if (r != null && r.sharedMaterials != null && r.sharedMaterials.Length > 0)
+                    {
+                        Material[] newMaterials = new Material[r.sharedMaterials.Length];
+                        for (int k = 0; k < r.sharedMaterials.Length; k++)
+                        {
+                            Material oldMat = r.sharedMaterials[k];
+                            Material newMat = new Material(urpShader);
+                            
+                            if (oldMat != null && oldMat.HasProperty("_BaseMap") && oldMat.GetTexture("_BaseMap") != null)
+                            {
+                                newMat.SetTexture("_BaseMap", oldMat.GetTexture("_BaseMap"));
+                                newMat.mainTexture = oldMat.GetTexture("_BaseMap");
+                            }
+                            else if (oldMat != null && oldMat.HasProperty("_MainTex") && oldMat.mainTexture != null)
+                            {
+                                newMat.mainTexture = oldMat.mainTexture;
+                                newMat.SetTexture("_BaseMap", oldMat.mainTexture);
+                            }
+                            else
+                            {
+                                newMat.color = randomColor;
+                            }
+                            newMaterials[k] = newMat;
+                        }
+                        r.materials = newMaterials;
+                    }
+                }
+
+                if (renderers.Length > 0)
+                {
+                    Bounds bounds = renderers[0].bounds;
+                    for (int j = 1; j < renderers.Length; j++) bounds.Encapsulate(renderers[j].bounds);
+
+                    float maxDim = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+                    if (maxDim > 0.001f)
+                    {
+                        float targetSize = Random.Range(0.24f, 0.28f); 
+                        float scaleFactor = targetSize / maxDim;
+                        item.transform.localScale = new Vector3(
+                            item.transform.localScale.x * scaleFactor, 
+                            item.transform.localScale.y * scaleFactor * Random.Range(1.4f, 1.8f), 
+                            item.transform.localScale.z * scaleFactor
+                        );
+                    }
+
+                    // Recalculate bounds after scaling to find the bottom
+                    bounds = renderers[0].bounds;
+                    for (int j = 1; j < renderers.Length; j++) bounds.Encapsulate(renderers[j].bounds);
+
+                    // Offset to place the bottom of the mesh at bottomY
+                    float worldOffsetToBottom = item.transform.position.y - bounds.min.y;
+                    float localYOffset = worldOffsetToBottom / transform.lossyScale.y;
+
+                    float posX = Random.Range(-0.04f, 0.04f);
+                    float posZ = Random.Range(-0.04f, 0.04f);
+
+                    item.transform.localPosition = new Vector3(posX, bottomY + localYOffset, posZ);
+                }
+            }
         }
     }
 

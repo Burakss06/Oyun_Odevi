@@ -1,12 +1,37 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Users\\Arda\\Desktop\\Oyun_Odevi\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{E4223C6D-2426-CC37-29B8-98D30F22AA32}|Assembly-CSharp.csproj|c:\\users\\arda\\desktop\\oyun_odevi\\assets\\scripts\\weighingscale.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E4223C6D-2426-CC37-29B8-98D30F22AA32}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\weighingscale.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "WeighingScale.cs",
+              "DocumentMoniker": "C:\\Users\\Arda\\Desktop\\Oyun_Odevi\\Assets\\Scripts\\WeighingScale.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\WeighingScale.cs",
+              "ToolTip": "C:\\Users\\Arda\\Desktop\\Oyun_Odevi\\Assets\\Scripts\\WeighingScale.cs",
+              "RelativeToolTip": "Assets\\Scripts\\WeighingScale.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAA/AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-09T12:17:30.006Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -5,7 +5,7 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Movement Settings")]
     [SerializeField] private float walkSpeed = 3.8f;
-    [SerializeField] private float runSpeed = 5.2f;
+    [SerializeField] private float runSpeed = 7.5f;
     [SerializeField] private float gravity = -9.81f;
     public static float SpeedMultiplier = 1.0f;
 
@@ -82,6 +82,16 @@ public class PlayerController : MonoBehaviour
 
         HandleMovement();
         HandleLook();
+
+        // Bant Hızlandırma (Fast Forward) Mekaniği: Sol CTRL'ye basılıysa ve yavaşlatıcı güçlendirici yoksa
+        if (Keyboard.current != null && Keyboard.current.leftCtrlKey.isPressed && ConveyorBeltPush.GlobalSpeedMultiplier >= 1.0f)
+        {
+            ConveyorBeltPush.PlayerSpeedMultiplier = 3.0f;
+        }
+        else
+        {
+            ConveyorBeltPush.PlayerSpeedMultiplier = 1.0f;
+        }
     }
 
     private void UpdateCursorState()

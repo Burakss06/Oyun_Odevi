@@ -27,6 +27,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI timerText;
     [SerializeField] private TextMeshProUGUI scoreText;
     [SerializeField] private TextMeshProUGUI errorText;
+    private TextMeshProUGUI remainingBoxesText;
 
     [Header("Briefing (Bilgilendirme) Elemanları")]
     [SerializeField] private TextMeshProUGUI briefingTitleText;
@@ -74,6 +75,12 @@ public class GameManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
             InitializeAudio();
+            
+            // UI Temasını ve Animasyonlarını Yükle
+            if (GetComponent<UIThemeEnhancer>() == null)
+            {
+                gameObject.AddComponent<UIThemeEnhancer>();
+            }
         }
         else
         {
@@ -242,6 +249,21 @@ public class GameManager : MonoBehaviour
             sensitivityValueText = pauseMenuUI.sensitivityValueText;
         }
 
+        // Kalan kutu UI metnini dinamik olarak ScoreText'ten kopyalayarak oluştur
+        if (scoreText != null)
+        {
+            GameObject remObj = Instantiate(scoreText.gameObject, scoreText.transform.parent);
+            remObj.name = "RemainingBoxesText";
+            remainingBoxesText = remObj.GetComponent<TextMeshProUGUI>();
+            remainingBoxesText.color = Color.white; // Tam beyaz
+            
+            // ScoreText'in soluna konumlandır (X ekseninde -65 birim)
+            RectTransform rect = remObj.GetComponent<RectTransform>();
+            rect.anchoredPosition = new Vector2(scoreText.rectTransform.anchoredPosition.x - 65f, scoreText.rectTransform.anchoredPosition.y);
+            remainingBoxesText.alignment = TextAlignmentOptions.Center;
+            remainingBoxesText.text = "Kalan Kutu: 0 / 0";
+        }
+
         if (nextDayButton != null) nextDayButton.onClick.AddListener(ProceedToNextDay);
         if (retryDayButton != null) retryDayButton.onClick.AddListener(RestartCurrentDay);
         if (restartGameButton != null) restartGameButton.onClick.AddListener(ResetWholeGame);
@@ -277,7 +299,7 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 0f; // Zamanı durdur
 
         hudPanel.SetActive(false);
-        briefingPanel.SetActive(true);
+        StartCoroutine(UIAnimator.FadeInAndScale(briefingPanel));
         reportPanel.SetActive(false);
         gameOverPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(false);
@@ -314,14 +336,13 @@ public class GameManager : MonoBehaviour
             RollDailyRules();
 
             DayConfig config = DayManager.Instance.GetCurrentDayConfig();
-            briefingTitleText.text = $"{config.dayNumber}. GÜN";
+            briefingTitleText.text = $"<color=#00BCD4>{config.dayNumber}. GÜN</color>";
             
-            string rulesText = "Bugünkü Kurallar:\n";
+            string rulesText = "";
             if (config.dayNumber == 1)
             {
-                // Sabit kurallar
-                rulesText += "- Kapalı kutuları KABUL paletine yerleştir.\n";
-                rulesText += "- Açık (kanatlı) kutuları RET paletine yerleştir.\n";
+                rulesText += " <color=#555555>■</color> Kapalı (bantlı) kutular <color=#888888>→</color> <color=#4CAF50><b>KABUL</b></color>\n";
+                rulesText += " <color=#555555>■</color> Açık (kanatlı) kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
             }
             else
             {
@@ -329,41 +350,45 @@ public class GameManager : MonoBehaviour
                 foreach (var rule in DailyRules)
                 {
                     string shapeName = "";
-                    if (rule.Key == BoxController.BoxShape.Closed) shapeName = "Kapalı";
-                    else if (rule.Key == BoxController.BoxShape.Opened) shapeName = "Açık (kanatlı)";
-                    else if (rule.Key == BoxController.BoxShape.Unfolded) shapeName = "Düz (unfolded) karton";
+                    if (rule.Key == BoxController.BoxShape.Closed) shapeName = "Kapalı kutular";
+                    else if (rule.Key == BoxController.BoxShape.Opened) shapeName = "Açık (kanatlı) kutular";
+                    else if (rule.Key == BoxController.BoxShape.Unfolded) shapeName = "Düz kartonlar";
 
+                    string palletColor = (rule.Value == PalletTrigger.PalletType.Kabul) ? "#4CAF50" : "#F44336";
                     string palletName = (rule.Value == PalletTrigger.PalletType.Kabul) ? "KABUL" : "RET";
-                    rulesText += $"- {shapeName} kutuları {palletName} paletine yerleştir.\n";
+                    rulesText += $" <color=#555555>■</color> {shapeName} <color=#888888>→</color> <color={palletColor}><b>{palletName}</b></color>\n";
                 }
             }
 
             // Ekstra fiziksel hataları ve sürpriz kutuyu ekle
             if (config.allowBarcodeDefect)
             {
-                rulesText += $"- BARKOD KURALI: Barkod numarası <b>{ValidBarcodeNumber}</b> olan kutuları KABUL et. Farklı numaralı kutuları RET paletine bırak.\n";
+                rulesText += $"\n <color=#FFC107><b>[BARKOD KONTROLÜ]</b></color>\n <color=#555555>■</color> Sadece <b>{ValidBarcodeNumber}</b> numaralılar <color=#888888>→</color> <color=#4CAF50><b>KABUL</b></color>\n";
             }
             if (config.allowWrongColorDefect)
             {
-                rulesText += "- Kırmızı boyalı hatalı kutuları RET paletine yerleştir.\n";
+                rulesText += $"\n <color=#F44336><b>[RENK KONTROLÜ]</b></color>\n <color=#555555>■</color> Kırmızı boyalı hatalı kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
             }
             if (config.allowSizeAnomalyDefect)
             {
-                rulesText += "- Boyut hatası (çok küçük/büyük) olan kutuları RET paletine yerleştir.\n";
+                rulesText += $"\n <color=#2196F3><b>[BOYUT KONTROLÜ]</b></color>\n <color=#555555>■</color> Gözle görülür küçük/büyük kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
             }
             if (config.allowWeightDefect)
             {
-                rulesText += "- AĞIRLIK KURALI: Kutuları tartıda tart! 10.0 kg ve üzeri ağır kutuları RET paletine yerleştir!\n";
+                rulesText += $"\n <color=#9C27B0><b>[AĞIRLIK KONTROLÜ]</b></color>\n <color=#555555>■</color> 10.0 kg ve üzeri ağır kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
             }
             if (config.dayNumber == 7)
             {
-                rulesText += "- SÜRPRİZ KUTU UYARISI: Mor renkli Sürpriz Kutular gelebilir! Nereye koyarsan koy %50 şansla doğru veya yanlış sayılacaktır.\n";
+                rulesText += $"\n <color=#E91E63><b>[SÜRPRİZ KUTU]</b></color>\n <color=#555555>■</color> Mor kutular eklendi. %50 şansla çalışır.\n";
             }
 
-            briefingContentText.text = $"Hedef: Toplam {config.totalBoxesToSpawn} kutunun kontrolünü yap.\n" +
-                                       $"Hata Limiti: Maksimum {config.allowedErrors} hata yapma hakkın var.\n" +
-                                       $"Süre: {config.dayDuration} saniye.\n\n" +
-                                       rulesText;
+            briefingContentText.text = $"<color=#AAAAAA><size=90%>────────── GÖREV ÖZETİ ──────────</size></color>\n" +
+                                       $" Hedef: Toplam <b>{config.totalBoxesToSpawn}</b> kutu kontrol edilecek.\n" +
+                                       $" Hata Limiti: Maksimum <b>{config.allowedErrors}</b> hata.\n" +
+                                       $" Süre: <b>{config.dayDuration}</b> saniye.\n" +
+                                       $"<color=#AAAAAA><size=90%>─────────────────────────────────</size></color>\n\n" +
+                                       $"<size=115%><b>GÜNLÜK KURALLAR:</b></size>\n" +
+                                       $"<line-height=120%>{rulesText}</line-height>";
         }
     }
 
@@ -489,6 +514,12 @@ public class GameManager : MonoBehaviour
         {
             DayConfig config = DayManager.Instance.GetCurrentDayConfig();
             errorText.text = $"Hata: {Errors}/{config.allowedErrors}";
+            
+            if (remainingBoxesText != null)
+            {
+                int remaining = Mathf.Max(0, config.totalBoxesToSpawn - TotalProcessedBoxes);
+                remainingBoxesText.text = $"Kalan Kutu: {remaining} / {config.totalBoxesToSpawn}";
+            }
         }
         else
         {
@@ -524,7 +555,7 @@ public class GameManager : MonoBehaviour
 
         hudPanel.SetActive(false);
         briefingPanel.SetActive(false);
-        reportPanel.SetActive(true);
+        StartCoroutine(UIAnimator.FadeInAndScale(reportPanel));
         gameOverPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(false);
 
@@ -558,14 +589,16 @@ public class GameManager : MonoBehaviour
             PlayLoseMusic();
         }
         
-        reportTitleText.text = isSuccess ? "GÜN TAMAMLANDI" : "GÜN BAŞARISIZ";
-        reportTitleText.color = isSuccess ? Color.green : Color.red;
+        reportTitleText.text = isSuccess ? "<color=#4CAF50>GÜN TAMAMLANDI</color>" : "<color=#F44336>GÜN BAŞARISIZ</color>";
+        reportTitleText.color = Color.white; // Renkleri TextMeshPro tagı ile hallediyoruz
 
-        reportStatsText.text = $"Toplam Üretilen Kutu: {TotalSpawnedBoxes}\n" +
-                               $"Kontrol Edilen: {TotalProcessedBoxes}\n" +
-                               $"Doğru Ayrıştırma: {Score}\n" +
-                               $"Yapılan Hata: {Errors}/{config.allowedErrors}\n\n" +
-                               (isSuccess ? "Tebrikler, sonraki güne geçmeye hak kazandın!" : (wasTimeUp ? "Zaman sınırına ulaştın ve günü yetiştiremedin." : "Hata sınırını aşmıştın veya hedeflere ulaşamadın."));
+        reportStatsText.text = $"<color=#AAAAAA><size=90%>────────── GÜN RAPORU ──────────</size></color>\n" +
+                               $" Toplam Üretilen Kutu: <color=#FFFFFF><b>{TotalSpawnedBoxes}</b></color>\n" +
+                               $" Kontrol Edilen: <color=#FFFFFF><b>{TotalProcessedBoxes}</b></color>\n" +
+                               $" Doğru Ayrıştırma: <color=#4CAF50><b>{Score}</b></color>\n" +
+                               $" Yapılan Hata: <color=#F44336><b>{Errors}/{config.allowedErrors}</b></color>\n" +
+                               $"<color=#AAAAAA><size=90%>────────────────────────────────</size></color>\n\n" +
+                               (isSuccess ? "<color=#FFC107>Tebrikler, sonraki güne geçmeye hak kazandın!</color>" : (wasTimeUp ? "<color=#F44336>Zaman sınırına ulaştın ve günü yetiştiremedin.</color>" : "<color=#F44336>Hata sınırını aşmıştın veya hedeflere ulaşamadın.</color>"));
 
         nextDayButton.gameObject.SetActive(isSuccess);
         retryDayButton.gameObject.SetActive(!isSuccess);
@@ -582,7 +615,7 @@ public class GameManager : MonoBehaviour
         hudPanel.SetActive(false);
         briefingPanel.SetActive(false);
         reportPanel.SetActive(false);
-        gameOverPanel.SetActive(true);
+        StartCoroutine(UIAnimator.FadeInAndScale(gameOverPanel));
         if (pausePanel != null) pausePanel.SetActive(false);
 
         Cursor.lockState = CursorLockMode.None;
@@ -593,9 +626,15 @@ public class GameManager : MonoBehaviour
             BoxSpawner.Instance.StopSpawning();
         }
 
-        // Metin rengini YEŞİL yap
-        gameOverText.color = Color.green;
-        gameOverText.text = $"TEBRİKLER! OYUNU KAZANDINIZ\n\n7 günlük fabrika kalite kontrol vardiyasını başarıyla tamamladın ve usta bir fabrika işçisi olduğunu kanıtladın!\n\nToplam Doğru: {Score}\nYaptığın Toplam Hata: {Errors}\n\nYeniden başlamak için aşağıdaki butonu kullanabilirsin.";
+        // Metinleri yeni tasarıma uyarla
+        gameOverText.color = Color.white;
+        gameOverText.text = $"<align=center><color=#4CAF50><size=130%>TEBRİKLER! OYUNU KAZANDINIZ</size></color>\n\n" +
+                            "<color=#CCCCCC>7 günlük fabrika kalite kontrol vardiyasını başarıyla tamamladın ve usta bir fabrika işçisi olduğunu kanıtladın!</color>\n\n" +
+                            $"<color=#AAAAAA><size=90%>────────── GENEL BİLANÇO ──────────</size></color>\n" +
+                            $"Toplam Doğru: <color=#4CAF50><b>{Score}</b></color>\n" +
+                            $"Yaptığın Toplam Hata: <color=#F44336><b>{Errors}</b></color>\n" +
+                            $"<color=#AAAAAA><size=90%>───────────────────────────────────</size></color>\n\n" +
+                            "<color=#FFC107>Yeniden başlamak için aşağıdaki butonu kullanabilirsin.</color></align>";
     }
 
     public void TriggerGameOver(string reason)
@@ -609,7 +648,7 @@ public class GameManager : MonoBehaviour
         hudPanel.SetActive(false);
         briefingPanel.SetActive(false);
         reportPanel.SetActive(false);
-        gameOverPanel.SetActive(true);
+        StartCoroutine(UIAnimator.FadeInAndScale(gameOverPanel));
         if (pausePanel != null) pausePanel.SetActive(false);
 
         Cursor.lockState = CursorLockMode.None;
@@ -620,9 +659,14 @@ public class GameManager : MonoBehaviour
             BoxSpawner.Instance.StopSpawning();
         }
 
-        // Metin rengini KIRMIZI yap
-        gameOverText.color = Color.red;
-        gameOverText.text = $"OYUN BİTTİ\n\nSebep: {reason}\n\nToplam Başarı: {DayManager.Instance.CurrentDay}. güne kadar gelebildin.";
+        // Metin rengini BEYAZ yapıp zengin metin (Rich Text) ile renklendir
+        gameOverText.color = Color.white;
+        gameOverText.text = $"<color=#FF3B30><size=130%><b>[ DENETİM BAŞARISIZ ]</b></size></color>\n\n" +
+                            $"<color=#AAAAAA><size=90%>─────── İŞTEN ÇIKARMA NEDENİ ───────</size></color>\n" +
+                            $"<color=#FF453A>■</color> Sebep: <b>{reason}</b>\n\n" +
+                            $"<color=#AAAAAA><size=90%>────────── VARDİYA ÖZETİ ──────────</size></color>\n" +
+                            $"<color=#FFD60A>■</color> Çalışılan Gün Sayısı: <b>{DayManager.Instance.CurrentDay} Gün</b>\n\n" +
+                            $"<color=#8E8E93><size=80%>Yeni bir vardiyaya başlamak için butona tıklayın.</size></color>";
 
         // Lose müziğini gecikmeli başlat
         StartCoroutine(PlayLoseMusicDelayed(1.2f));
@@ -716,7 +760,7 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 0f; // Zamanı durdur
 
         hudPanel.SetActive(false);
-        briefingPanel.SetActive(true);
+        StartCoroutine(UIAnimator.FadeInAndScale(briefingPanel)); // Menu ve Briefing aynı paneli kullanıyor
         reportPanel.SetActive(false);
         gameOverPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(false);
@@ -763,12 +807,14 @@ public class GameManager : MonoBehaviour
         }
 
         // Metinleri ata
-        briefingTitleText.text = "<color=#FFaa00>Denetim ve Kalite Kontrol Simülasyonuna Hoş Geldiniz</color>";
+        briefingTitleText.text = "";
         
-        briefingContentText.text = "Fabrika kalite kontrol vardiyanıza başlamak üzeresiniz.\n\n" +
-                                   "<b>Göreviniz:</b> Banttan gelen kutuları günlük kurallara göre KABUL veya RET paletlerine yerleştirmektir.\n" +
-                                   "Hata limitinizi aşmadan günü tamamlamalısınız.\n\n" +
-                                   "<b>Başlamak için aşağıdaki butona tıklayın!</b>";
+        briefingContentText.text = "<align=center><color=#FFAA00><size=120%>DENETİM VE KALİTE KONTROL SİMÜLASYONU'NA</size></color>\n<size=160%><b><color=#FFFFFF>HOŞ GELDİNİZ</color></b></size></align>\n\n" +
+                                   "<color=#AAAAAA><size=90%>─────────────────────────────────────────</size></color>\n" +
+                                   "<color=#CCCCCC><b>Göreviniz:</b> Banttan gelen kutuları günlük kurallara göre incelemek ve doğru paletlere (<color=#4CAF50><b>KABUL</b></color> veya <color=#F44336><b>RET</b></color>) yerleştirmektir.</color>\n\n" +
+                                   "<color=#CCCCCC>Her gün değişen kurallara dikkat edin ve hata limitinizi aşmadan vardiyayı tamamlayın.</color>\n" +
+                                   "<color=#AAAAAA><size=90%>─────────────────────────────────────────</size></color>\n\n" +
+                                   "<align=center><color=#FFC107>Başlamak için aşağıdaki butona tıklayın!</color></align>";
 
         UpdateButtonText(startDayButton, "OYUNA BAŞLA");
     }

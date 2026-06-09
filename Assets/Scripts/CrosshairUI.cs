@@ -91,6 +91,16 @@ public class CrosshairUI : MonoBehaviour
                     targetDotSize = holdingDotSize;
                 }
             }
+            else if (playerInteraction.IsLookingAtPallet)
+            {
+                PalletTrigger pallet = playerInteraction.LookedAtPallet;
+                if (pallet != null)
+                {
+                    targetPrompt = pallet.GetPalletType() == PalletTrigger.PalletType.Kabul ? "[E] Kabul Paletine Bırak" : "[E] Ret Paletine Bırak";
+                    targetColor = hoverColor;
+                    targetDotSize = hoverDotSize;
+                }
+            }
             else
             {
                 // Kutu taşırken çok küçük ve soluk nokta

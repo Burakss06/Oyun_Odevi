@@ -65,8 +65,16 @@ public class BoxSpawner : MonoBehaviour
 
             SpawnBox(config);
 
-            // Bir sonraki kutu üretimi için bekle
-            yield return new WaitForSeconds(spawnInterval);
+            // Bir sonraki kutu üretimi için bekle (Hızlandırılabilir Zamanlayıcı)
+            float timer = 0f;
+            while (timer < spawnInterval)
+            {
+                if (!isSpawning) yield break;
+                
+                // Bant hız çarpanını zamana ekle ki bant hızlandığında kutular da aynı oranda hızlı üretilsin
+                timer += Time.deltaTime * ConveyorBeltPush.PlayerSpeedMultiplier;
+                yield return null;
+            }
         }
     }
 

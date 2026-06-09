@@ -24,7 +24,7 @@ public class DayManager : MonoBehaviour
     [Header("Gün Konfigürasyonları")]
     [SerializeField] private List<DayConfig> dayConfigs = new List<DayConfig>();
 
-    public int CurrentDay { get; private set; } = 6;
+    public int CurrentDay { get; private set; } = 1;
     
     private float timer;
     private bool isTimerRunning = false;
@@ -74,7 +74,7 @@ public class DayManager : MonoBehaviour
                 allowSizeAnomalyDefect = false
             });
 
-            // 3. Gün: Kapalı, Açık, Düz ve Yanlış Renkli kutular. Hasarlı ve boyut kapalı.
+            // 3. Gün: Tartı Günü! (Ağır kutular) Renk, boyut ve hasar henüz yok.
             dayConfigs.Add(new DayConfig
             {
                 dayNumber = 3,
@@ -83,11 +83,12 @@ public class DayManager : MonoBehaviour
                 allowedErrors = 2,
                 dayDuration = 140f,
                 allowBarcodeDefect = false,
-                allowWrongColorDefect = true,
-                allowSizeAnomalyDefect = false
+                allowWrongColorDefect = false,
+                allowSizeAnomalyDefect = false,
+                allowWeightDefect = true
             });
 
-            // 4. Gün: Tartı Günü! (Ağır kutular) Boyut hatası ve hasar henüz yok.
+            // 4. Gün: Renk Günü! (Yanlış renkli kutular) Ağırlık da devam ediyor.
             dayConfigs.Add(new DayConfig
             {
                 dayNumber = 4,
@@ -101,7 +102,7 @@ public class DayManager : MonoBehaviour
                 allowWeightDefect = true
             });
 
-            // 5. Gün: Boyut Hatası Günü! (Çok küçük/büyük kutular)
+            // 5. Gün: Barkod Kontrol Günü! (Yanlış barkodlar)
             dayConfigs.Add(new DayConfig
             {
                 dayNumber = 5,
@@ -109,13 +110,13 @@ public class DayManager : MonoBehaviour
                 defectSpawnChance = 0.5f,
                 allowedErrors = 2,
                 dayDuration = 180f,
-                allowBarcodeDefect = false,
+                allowBarcodeDefect = true,
                 allowWrongColorDefect = true,
-                allowSizeAnomalyDefect = true,
+                allowSizeAnomalyDefect = false,
                 allowWeightDefect = true
             });
 
-            // 6. Gün: Hasarlı Kutu Günü! (Ezik/Kırık kutular)
+            // 6. Gün: Boyut Hatası Günü! (Çok küçük/büyük kutular)
             dayConfigs.Add(new DayConfig
             {
                 dayNumber = 6,
@@ -216,7 +217,7 @@ public class DayManager : MonoBehaviour
 
     public void ResetProgress()
     {
-        CurrentDay = 6;
+        CurrentDay = 1;
         isTimerRunning = false;
         timer = 0f;
     }

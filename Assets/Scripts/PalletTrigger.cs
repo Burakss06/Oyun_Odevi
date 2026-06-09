@@ -7,28 +7,33 @@ public class PalletTrigger : MonoBehaviour
     [Header("Palet Ayarları")]
     [SerializeField] private PalletType palletType = PalletType.Kabul;
 
-    private void OnTriggerStay(Collider other)
+    public PalletType GetPalletType()
     {
-        // Çarpışan objenin kutu olup olmadığını kontrol et
-        BoxController box = other.GetComponent<BoxController>();
-        if (box == null)
-        {
-            // Eğer parent'ında varsa oradan al (rigged prefabların yapısına uyum sağlamak için)
-            box = other.GetComponentInParent<BoxController>();
-        }
+        return palletType;
+    }
 
-        // Eğer kutu bulunduysa ve henüz değerlendirilmediyse
+    private void Awake()
+    {
+        // Oyuncunun palete tam aşağı bakmadan da "E" etkileşimini görebilmesi için
+        // paletin algılama alanını (Trigger Collider) yukarı doğru 3 metre uzatıyoruz.
+        BoxCollider col = GetComponent<BoxCollider>();
+        if (col != null && col.isTrigger)
+        {
+            Vector3 newSize = col.size;
+            newSize.y += 3.0f; // Yukarı doğru 3 birim uzat
+            col.size = newSize;
+
+            Vector3 newCenter = col.center;
+            newCenter.y += 1.5f; // Merkeze göre uzadığı için yarısı kadar da yukarı kaydır
+            col.center = newCenter;
+        }
+    }
+
+    public void PlaceBox(BoxController box)
+    {
         if (box != null && !box.IsEvaluated)
         {
-            Rigidbody rb = box.GetComponent<Rigidbody>();
-            if (rb == null) return;
-
-            // Oyuncu kutuyu elinde tutarken (isKinematic = true) değerlendirme YAPMA.
-            // Oyuncu kutuyu palete bıraktığı an (isKinematic = false) değerlendirme başlasın.
-            if (!rb.isKinematic)
-            {
-                EvaluateBox(box);
-            }
+            EvaluateBox(box);
         }
     }
 
