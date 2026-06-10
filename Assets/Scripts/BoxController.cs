@@ -67,7 +67,7 @@ public class BoxController : MonoBehaviour
     }
 
     [Header("Görsel Efekt Ayarları")]
-    [SerializeField] private Color wrongColorTint = new Color(1.0f, 0.5f, 0.0f); // Yanlış renk kuralı artık kırmızı yerine belirgin turuncu
+    [SerializeField] private Color wrongColorTint = new Color(0.1f, 0.9f, 0.1f); // Yanlış renk kuralı artık yeşil (oyuncuyu ters köşe yapmak için)
 
     private bool isEvaluated = false; // Palete konup değerlendirildi mi?
     public bool IsEvaluated => isEvaluated;
@@ -86,29 +86,36 @@ public class BoxController : MonoBehaviour
 
     public void InitializeBox(DayConfig config)
     {
-        // Kutunun defolu olup olmayacağına karar ver
-        float randomVal = Random.value;
-        if (randomVal <= config.defectSpawnChance)
+        if (isMysteryBox)
         {
-            // O gün aktif olan kusur türlerini listele
-            List<DefectType> allowedDefects = new List<DefectType>();
-            if (config.allowBarcodeDefect) allowedDefects.Add(DefectType.BarcodeAnomaly);
-            if (config.allowWrongColorDefect) allowedDefects.Add(DefectType.WrongColor);
-            if (config.allowSizeAnomalyDefect) allowedDefects.Add(DefectType.SizeAnomaly);
-
-            if (allowedDefects.Count > 0)
+            currentDefect = DefectType.None;
+        }
+        else
+        {
+            // Kutunun defolu olup olmayacağına karar ver
+            float randomVal = Random.value;
+            if (randomVal <= config.defectSpawnChance)
             {
-                // Aktif kusurlardan birini rastgele seç
-                currentDefect = allowedDefects[Random.Range(0, allowedDefects.Count)];
+                // O gün aktif olan kusur türlerini listele
+                List<DefectType> allowedDefects = new List<DefectType>();
+                if (config.allowBarcodeDefect) allowedDefects.Add(DefectType.BarcodeAnomaly);
+                if (config.allowWrongColorDefect) allowedDefects.Add(DefectType.WrongColor);
+                if (config.allowSizeAnomalyDefect) allowedDefects.Add(DefectType.SizeAnomaly);
+
+                if (allowedDefects.Count > 0)
+                {
+                    // Aktif kusurlardan birini rastgele seç
+                    currentDefect = allowedDefects[Random.Range(0, allowedDefects.Count)];
+                }
+                else
+                {
+                    currentDefect = DefectType.None;
+                }
             }
             else
             {
                 currentDefect = DefectType.None;
             }
-        }
-        else
-        {
-            currentDefect = DefectType.None;
         }
 
         // Ağırlık ataması
@@ -507,8 +514,8 @@ public class BoxController : MonoBehaviour
 
     private void ApplyVisualDefect()
     {
-        // Barkod günü ise her kutuya barkod etiketi ekle
-        if (DayManager.Instance != null && DayManager.Instance.GetCurrentDayConfig().allowBarcodeDefect)
+        // Barkod günü ise her kutuya barkod etiketi ekle (Sürpriz kutular hariç)
+        if (DayManager.Instance != null && DayManager.Instance.GetCurrentDayConfig().allowBarcodeDefect && !isMysteryBox)
         {
             CreateBarcodeUI();
         }
@@ -545,9 +552,9 @@ public class BoxController : MonoBehaviour
 
             case DefectType.SizeAnomaly:
                 // Boyut Hatası Görünümü:
-                // Kutu ya çok küçük (0.70x) ya da çok büyük (1.30x) olmalı (%50 ihtimal)
+                // Kutu ya çok küçük (0.70x) ya da çok büyük (1.24x) olmalı (%50 ihtimal)
                 // Bu sayede cam tünelden dışarı taşmaz ve bantta takılmaz.
-                float scaleMultiplier = (Random.value > 0.5f) ? 0.70f : 1.30f;
+                float scaleMultiplier = (Random.value > 0.5f) ? 0.70f : 1.24f;
                 transform.localScale = originalScale * scaleMultiplier;
                 
                 // Rigidbody kütlesini boyutuna göre güncelle

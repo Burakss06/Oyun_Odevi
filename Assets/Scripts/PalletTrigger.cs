@@ -160,6 +160,19 @@ public class PalletTrigger : MonoBehaviour
             
             // Taşırma ve göçme sorununu dengelemek için güvenlik payı
             pivotOffsetToBottom += 0.18f;
+
+            // Sadece boyut anomalisine sahip düz(uzun) kutular için diğerlerini bozmadan ekstra düzeltme
+            if (box.CurrentDefect == BoxController.DefectType.SizeAnomaly)
+            {
+                if (box.transform.localScale.y > 1.0f)
+                {
+                    pivotOffsetToBottom += 0.04f; // Büyümüşse daha yukarı çek (palete göçmesini engelle)
+                }
+                else
+                {
+                    pivotOffsetToBottom -= 0.08f; // Küçülmüşse havada kalmaması için aşağı indir
+                }
+            }
         }
         else
         {

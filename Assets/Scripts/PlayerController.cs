@@ -8,6 +8,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float runSpeed = 7.5f;
     [SerializeField] private float gravity = -9.81f;
     public static float SpeedMultiplier = 1.0f;
+    public static bool InvertControls = false;
 
     [Header("Look Settings")]
     [SerializeField] private Transform playerCamera;
@@ -123,6 +124,11 @@ public class PlayerController : MonoBehaviour
             if (Keyboard.current.sKey.isPressed) input.y -= 1;
             if (Keyboard.current.aKey.isPressed) input.x -= 1;
             if (Keyboard.current.dKey.isPressed) input.x += 1;
+        }
+
+        if (InvertControls)
+        {
+            input = -input;
         }
 
         float currentSpeed = walkSpeed * SpeedMultiplier;

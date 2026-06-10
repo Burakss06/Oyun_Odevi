@@ -147,7 +147,7 @@ public class PowerUpManager : MonoBehaviour
         // İhtimaller:
         // Keskin Göz: %10
         // Çamurlu Çizmeler (Debuff): %10
-        // Zaman Bükücü: %15
+        // Ters Kontroller (Debuff): %15
         // Müfettişin İzni: %13
         // Sakin Vardiya: %13
         // Kargo Mıknatısı: %13
@@ -155,7 +155,7 @@ public class PowerUpManager : MonoBehaviour
         // Turbo Ayakkabı: %13
         if (rand <= 0.10f) return PowerUpController.PowerUpType.SharpEye;
         else if (rand <= 0.20f) return PowerUpController.PowerUpType.MuddyBoots;
-        else if (rand <= 0.35f) return PowerUpController.PowerUpType.TimeBender;
+        else if (rand <= 0.35f) return PowerUpController.PowerUpType.Confusion;
         else if (rand <= 0.48f) return PowerUpController.PowerUpType.InspectorPermission;
         else if (rand <= 0.61f) return PowerUpController.PowerUpType.QuietShift;
         else if (rand <= 0.74f) return PowerUpController.PowerUpType.CargoMagnet;
@@ -220,7 +220,7 @@ public class PowerUpManager : MonoBehaviour
     {
         if (audioSource != null)
         {
-            if (pu.Type == PowerUpController.PowerUpType.MuddyBoots)
+            if (pu.Type == PowerUpController.PowerUpType.MuddyBoots || pu.Type == PowerUpController.PowerUpType.Confusion)
             {
                 if (penaltySound != null) audioSource.PlayOneShot(penaltySound);
             }
@@ -234,10 +234,10 @@ public class PowerUpManager : MonoBehaviour
         
         switch (pu.Type)
         {
-            case PowerUpController.PowerUpType.TimeBender:
-                if (DayManager.Instance != null) DayManager.Instance.AddTime(20f);
-                SpawnFloatingText("+20 Saniye!", pos, Color.cyan);
-                ShowNotification("Zaman Bükücü: Vardiyaya +20 Saniye Eklendi!", Color.cyan);
+            case PowerUpController.PowerUpType.Confusion:
+                StartCoroutine(ConfusionRoutine());
+                SpawnFloatingText("Yönler Ters!", pos, new Color(0.8f, 0.2f, 0.8f));
+                ShowNotification("Ters Kontroller: Hareket Yönlerin 8 Saniyeliğine Tersine Döndü!", new Color(0.8f, 0.2f, 0.8f));
                 break;
             case PowerUpController.PowerUpType.InspectorPermission:
                 if (GameManager.Instance != null) GameManager.Instance.DecreaseErrorCount();
@@ -387,5 +387,14 @@ public class PowerUpManager : MonoBehaviour
         yield return new WaitForSeconds(20f);
         PlayerController.SpeedMultiplier = 1.0f;
         Debug.Log("[PowerUp] Çamurlu Çizmeler bitti.");
+    }
+
+    private IEnumerator ConfusionRoutine()
+    {
+        Debug.Log("[PowerUp] Ters Kontroller aktif! Yönler 8 saniyeliğine tersine dönüyor.");
+        PlayerController.InvertControls = true;
+        yield return new WaitForSeconds(8f);
+        PlayerController.InvertControls = false;
+        Debug.Log("[PowerUp] Ters Kontroller bitti.");
     }
 }

@@ -4,7 +4,7 @@ public class PowerUpController : MonoBehaviour
 {
     public enum PowerUpType
     {
-        TimeBender,          // Zaman Bükücü (+20 Saniye)
+        Confusion,           // Ters Kontroller (Yönleri ters çevirir - Debuff)
         InspectorPermission, // Müfettişin İzni (1 Ekstra Hata Hakkı)
         QuietShift,          // Sakin Vardiya (Bant Yavaşlatıcı)
         SharpEye,            // Keskin Göz (Hata Vurgulayıcı)
