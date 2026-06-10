@@ -163,6 +163,11 @@ public class BoxController : MonoBehaviour
             FillBoxWithOfficeProps();
         }
 
+        if (Shape == BoxShape.Unfolded)
+        {
+            // Kutunun altını kapatma işlemini kod yerine Unity üzerinden manuel Quad ekleyerek çözeceğiz.
+        }
+
         // Kusurun görsel etkilerini uygula
         ApplyVisualDefect();
     }

@@ -904,12 +904,6 @@ public class GameManager : MonoBehaviour
                     ResumeGame();
                 }
             }
-
-            // Geliştirici Kısayolu: Hızlı Gün Atlama (F2)
-            if (UnityEngine.InputSystem.Keyboard.current.f2Key.wasPressedThisFrame && CurrentState == GameState.Playing)
-            {
-                EndDay(false);
-            }
         }
     }
 
