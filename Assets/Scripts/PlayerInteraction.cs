@@ -324,16 +324,38 @@ public class PlayerInteraction : MonoBehaviour
         lookedAtScale = null;
         lookedAtPallet = null;
 
-        RaycastHit hit;
-        if (Physics.Raycast(playerCamera.position, playerCamera.forward, out hit, scaleInteractionDistance))
+        RaycastHit[] hits = Physics.RaycastAll(playerCamera.position, playerCamera.forward, scaleInteractionDistance);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        foreach (RaycastHit hit in hits)
         {
+            // Elimizde tuttuğumuz objeyi es geç
+            if (heldObject != null && (hit.collider.gameObject == heldObject || hit.collider.transform.IsChildOf(heldObject.transform)))
+            {
+                continue;
+            }
+
             WeighingScale scale = hit.collider.GetComponent<WeighingScale>();
             if (scale == null) scale = hit.collider.GetComponentInParent<WeighingScale>();
-            if (scale != null) lookedAtScale = scale;
+            if (scale != null)
+            {
+                lookedAtScale = scale;
+                break;
+            }
 
             PalletTrigger pallet = hit.collider.GetComponent<PalletTrigger>();
             if (pallet == null) pallet = hit.collider.GetComponentInParent<PalletTrigger>();
-            if (pallet != null) lookedAtPallet = pallet;
+            if (pallet != null)
+            {
+                lookedAtPallet = pallet;
+                break;
+            }
+
+            // Forklift dışındaki katı engellerin arkasını görmeyi engelle
+            if (!hit.collider.isTrigger && !hit.collider.name.ToLower().Contains("forklift"))
+            {
+                break;
+            }
         }
     }
 

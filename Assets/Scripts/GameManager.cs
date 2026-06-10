@@ -363,32 +363,31 @@ public class GameManager : MonoBehaviour
             // Ekstra fiziksel hataları ve sürpriz kutuyu ekle
             if (config.allowBarcodeDefect)
             {
-                rulesText += $"\n <color=#FFC107><b>[BARKOD KONTROLÜ]</b></color>\n <color=#555555>■</color> Sadece <b>{ValidBarcodeNumber}</b> numaralılar <color=#888888>→</color> <color=#4CAF50><b>KABUL</b></color>\n";
+                rulesText += $"<color=#FFC107><b>[BARKOD KONTROLÜ]</b></color>\n <color=#555555>■</color> Sadece <b>{ValidBarcodeNumber}</b> numaralılar <color=#888888>→</color> <color=#4CAF50><b>KABUL</b></color>\n";
             }
             if (config.allowWrongColorDefect)
             {
-                rulesText += $"\n <color=#F44336><b>[RENK KONTROLÜ]</b></color>\n <color=#555555>■</color> Kırmızı boyalı hatalı kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
+                rulesText += $"<color=#F44336><b>[RENK KONTROLÜ]</b></color>\n <color=#555555>■</color> Kırmızı boyalı hatalı kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
             }
             if (config.allowSizeAnomalyDefect)
             {
-                rulesText += $"\n <color=#2196F3><b>[BOYUT KONTROLÜ]</b></color>\n <color=#555555>■</color> Gözle görülür küçük/büyük kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
+                rulesText += $"<color=#2196F3><b>[BOYUT KONTROLÜ]</b></color>\n <color=#555555>■</color> Küçük/büyük kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
             }
             if (config.allowWeightDefect)
             {
-                rulesText += $"\n <color=#9C27B0><b>[AĞIRLIK KONTROLÜ]</b></color>\n <color=#555555>■</color> 10.0 kg ve üzeri ağır kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
+                rulesText += $"<color=#9C27B0><b>[AĞIRLIK KONTROLÜ]</b></color>\n <color=#555555>■</color> 10.0 kg ve üzeri ağır kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
             }
             if (config.dayNumber == 7)
             {
-                rulesText += $"\n <color=#E91E63><b>[SÜRPRİZ KUTU]</b></color>\n <color=#555555>■</color> Mor kutular eklendi. %50 şansla çalışır.\n";
+                rulesText += $"<color=#E91E63><b>[SÜRPRİZ KUTU]</b></color>\n <color=#555555>■</color> Mor kutular eklendi. %50 şansla çalışır.\n";
             }
 
-            briefingContentText.text = $"<color=#AAAAAA><size=90%>────────── GÖREV ÖZETİ ──────────</size></color>\n" +
-                                       $" Hedef: Toplam <b>{config.totalBoxesToSpawn}</b> kutu kontrol edilecek.\n" +
-                                       $" Hata Limiti: Maksimum <b>{config.allowedErrors}</b> hata.\n" +
+            briefingContentText.text = $"<color=#AAAAAA><size=80%>────────── GÖREV ÖZETİ ──────────</size></color>\n" +
+                                       $" Hedef: Toplam <b>{config.totalBoxesToSpawn}</b> kutu kontrol edilecek. Hata Limiti: <b>{config.allowedErrors}</b> hata.\n" +
                                        $" Süre: <b>{config.dayDuration}</b> saniye.\n" +
-                                       $"<color=#AAAAAA><size=90%>─────────────────────────────────</size></color>\n\n" +
-                                       $"<size=115%><b>GÜNLÜK KURALLAR:</b></size>\n" +
-                                       $"<line-height=120%>{rulesText}</line-height>";
+                                       $"<color=#AAAAAA><size=80%>─────────────────────────────────</size></color>\n" +
+                                       $"<size=100%><b>GÜNLÜK KURALLAR:</b></size>\n" +
+                                       $"<line-height=90%><size=90%>{rulesText}</size></line-height>";
         }
     }
 
@@ -423,6 +422,13 @@ public class GameManager : MonoBehaviour
             {
                 Destroy(obj);
             }
+        }
+
+        // Paletlerin üzerindeki istiflenmiş kutu listelerini temizle
+        PalletTrigger[] pallets = FindObjectsOfType<PalletTrigger>();
+        foreach (PalletTrigger pallet in pallets)
+        {
+            pallet.ClearStackedBoxes();
         }
 
         // Oyuncuyu başlangıç konumuna sıfırla

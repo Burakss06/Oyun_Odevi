@@ -24,7 +24,7 @@ public class DayManager : MonoBehaviour
     [Header("Gün Konfigürasyonları")]
     [SerializeField] private List<DayConfig> dayConfigs = new List<DayConfig>();
 
-    public int CurrentDay { get; private set; } = 1;
+    public int CurrentDay { get; private set; } = 7;
     
     private float timer;
     private bool isTimerRunning = false;
@@ -217,7 +217,7 @@ public class DayManager : MonoBehaviour
 
     public void ResetProgress()
     {
-        CurrentDay = 1;
+        CurrentDay = 7;
         isTimerRunning = false;
         timer = 0f;
     }

@@ -67,7 +67,7 @@ public class BoxController : MonoBehaviour
     }
 
     [Header("Görsel Efekt Ayarları")]
-    [SerializeField] private Color wrongColorTint = new Color(0.9f, 0.1f, 0.1f); // Yanlış renk için kırmızı tonu
+    [SerializeField] private Color wrongColorTint = new Color(1.0f, 0.5f, 0.0f); // Yanlış renk kuralı artık kırmızı yerine belirgin turuncu
 
     private bool isEvaluated = false; // Palete konup değerlendirildi mi?
     public bool IsEvaluated => isEvaluated;
@@ -148,14 +148,16 @@ public class BoxController : MonoBehaviour
             }
         }
 
-        // Kusurun görsel etkilerini uygula
-        ApplyVisualDefect();
-
         // Kutu kapağı açıksa (Opened veya Unfolded), içini kodla doldur
+        // Bunu görsel kusur uygulanmadan ÖNCE yapıyoruz, böylece boyut hatası (SizeAnomaly)
+        // tüm kutuyu ve içindeki eşyaları orantılı olarak küçültür/büyütür, eşyalar taşmaz.
         if (Shape == BoxShape.Opened || Shape == BoxShape.Unfolded)
         {
             FillBoxWithOfficeProps();
         }
+
+        // Kusurun görsel etkilerini uygula
+        ApplyVisualDefect();
     }
 
     private void CreateBarcodeUI()
@@ -209,6 +211,69 @@ public class BoxController : MonoBehaviour
             
             meshRen.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             meshRen.receiveShadows = false;
+        }
+    }
+
+    private void CreateMysteryUI()
+    {
+        Renderer boxRenderer = GetComponentInChildren<Renderer>();
+        Bounds bounds = (boxRenderer != null) ? boxRenderer.bounds : new Bounds(transform.position, Vector3.one);
+
+        float halfX = bounds.extents.x / transform.lossyScale.x;
+        float halfY = bounds.extents.y / transform.lossyScale.y;
+        float halfZ = bounds.extents.z / transform.lossyScale.z;
+
+        // 4 yüzey için pozisyon ve rotasyonlar (Ön, Arka, Sol, Sağ)
+        // Barkoda denk gelmemesi için yükseklik merkezde (0), barkod ise aşağıda (-0.55).
+        Vector3[] positions = new Vector3[]
+        {
+            new Vector3(0, 0, -(halfZ + 0.001f)), // Ön
+            new Vector3(0, 0, (halfZ + 0.001f)),  // Arka
+            new Vector3(-(halfX + 0.001f), 0, 0), // Sol
+            new Vector3((halfX + 0.001f), 0, 0)   // Sağ
+        };
+        
+        Vector3[] rotations = new Vector3[]
+        {
+            new Vector3(0, 0, 0),    // Ön
+            new Vector3(0, 180, 0),  // Arka
+            new Vector3(0, 90, 0),   // Sol (düzeltildi)
+            new Vector3(0, -90, 0)   // Sağ (düzeltildi)
+        };
+
+        for (int i = 0; i < 4; i++)
+        {
+            GameObject qMark = new GameObject("MysteryMark_" + i);
+            qMark.transform.SetParent(transform);
+            
+            qMark.transform.localPosition = positions[i];
+            qMark.transform.localRotation = Quaternion.Euler(rotations[i]);
+            qMark.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
+
+            TextMesh tm = qMark.AddComponent<TextMesh>();
+            tm.text = "?";
+            tm.anchor = TextAnchor.MiddleCenter;
+            tm.alignment = TextAlignment.Center;
+            tm.characterSize = 0.1f;
+            tm.fontSize = 120; // Devasa ve dikkat çekici
+            tm.fontStyle = FontStyle.Bold;
+            
+            // Renk değiştiren Gökkuşağı efektini ekle
+            qMark.AddComponent<RainbowTextEffect>();
+
+            MeshRenderer meshRen = qMark.GetComponent<MeshRenderer>();
+            if (meshRen != null)
+            {
+                Shader depthShader = Shader.Find("Custom/TextDepthTested");
+                if (depthShader != null)
+                {
+                    Material mat = new Material(meshRen.sharedMaterial);
+                    mat.shader = depthShader;
+                    meshRen.material = mat;
+                }
+                meshRen.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                meshRen.receiveShadows = false;
+            }
         }
     }
 
@@ -448,6 +513,12 @@ public class BoxController : MonoBehaviour
             CreateBarcodeUI();
         }
 
+        // Sürpriz kutu ise özel "?" tasarımlarını ekle
+        if (isMysteryBox)
+        {
+            CreateMysteryUI();
+        }
+
         switch (currentDefect)
         {
             case DefectType.None:
@@ -474,9 +545,9 @@ public class BoxController : MonoBehaviour
 
             case DefectType.SizeAnomaly:
                 // Boyut Hatası Görünümü:
-                // Kutu ya çok küçük (0.70x) ya da çok büyük (1.22x) olmalı (%50 ihtimal)
+                // Kutu ya çok küçük (0.70x) ya da çok büyük (1.30x) olmalı (%50 ihtimal)
                 // Bu sayede cam tünelden dışarı taşmaz ve bantta takılmaz.
-                float scaleMultiplier = (Random.value > 0.5f) ? 0.70f : 1.22f;
+                float scaleMultiplier = (Random.value > 0.5f) ? 0.70f : 1.30f;
                 transform.localScale = originalScale * scaleMultiplier;
                 
                 // Rigidbody kütlesini boyutuna göre güncelle
