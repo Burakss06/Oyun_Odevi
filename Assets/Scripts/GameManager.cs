@@ -58,6 +58,7 @@ public class GameManager : MonoBehaviour
     public int Errors { get; private set; }
     public int TotalSpawnedBoxes { get; private set; }
     public int TotalProcessedBoxes { get; private set; }
+    public int TotalSalary { get; private set; }
 
     public System.Collections.Generic.Dictionary<BoxController.BoxShape, PalletTrigger.PalletType> DailyRules { get; private set; }
     public string ValidBarcodeNumber { get; private set; } = "";
@@ -281,6 +282,7 @@ public class GameManager : MonoBehaviour
         Errors = 0;
         TotalSpawnedBoxes = 0;
         TotalProcessedBoxes = 0;
+        TotalSalary = 0;
 
         // DayManager'ı sıfırla
         if (DayManager.Instance != null)
@@ -387,7 +389,7 @@ public class GameManager : MonoBehaviour
                                        $" Süre: <b>{config.dayDuration}</b> saniye.\n" +
                                        $"<color=#AAAAAA><size=80%>─────────────────────────────────</size></color>\n" +
                                        $"<size=100%><b>GÜNLÜK KURALLAR:</b></size>\n" +
-                                       $"<line-height=90%><size=90%>{rulesText}</size></line-height>";
+                                       $"<line-height=85%><size=75%>{rulesText}</size></line-height>";
         }
     }
 
@@ -466,6 +468,7 @@ public class GameManager : MonoBehaviour
     {
         Score++;
         TotalProcessedBoxes++;
+        TotalSalary += 50;
         UpdateHUD();
         PlayCorrectSound();
         CheckDayCompletion();
@@ -475,6 +478,7 @@ public class GameManager : MonoBehaviour
     {
         Errors++;
         TotalProcessedBoxes++;
+        TotalSalary -= 20;
         UpdateHUD();
 
         DayConfig config = DayManager.Instance.GetCurrentDayConfig();
@@ -512,7 +516,7 @@ public class GameManager : MonoBehaviour
     {
         if (DayManager.Instance != null)
         {
-            dayText.text = $"Gün: {DayManager.Instance.CurrentDay}";
+            dayText.text = $"Gün: {DayManager.Instance.CurrentDay}   |   Maaş: {TotalSalary} TL";
         }
         scoreText.text = $"Doğru: {Score}";
         
@@ -580,6 +584,12 @@ public class GameManager : MonoBehaviour
         
         if (isSuccess)
         {
+            // Erken bitirme bonusu: Kalan her saniye için +5 TL
+            if (DayManager.Instance != null && DayManager.Instance.RemainingTime > 0)
+            {
+                TotalSalary += Mathf.FloorToInt(DayManager.Instance.RemainingTime) * 5;
+            }
+
             if (config.dayNumber == 7)
             {
                 TriggerGameWin();
@@ -603,6 +613,7 @@ public class GameManager : MonoBehaviour
                                $" Kontrol Edilen: <color=#FFFFFF><b>{TotalProcessedBoxes}</b></color>\n" +
                                $" Doğru Ayrıştırma: <color=#4CAF50><b>{Score}</b></color>\n" +
                                $" Yapılan Hata: <color=#F44336><b>{Errors}/{config.allowedErrors}</b></color>\n" +
+                               $" Güncel Maaş: <color=#FFD700><b>{TotalSalary} TL</b></color>\n" +
                                $"<color=#AAAAAA><size=90%>────────────────────────────────</size></color>\n\n" +
                                (isSuccess ? "<color=#FFC107>Tebrikler, sonraki güne geçmeye hak kazandın!</color>" : (wasTimeUp ? "<color=#F44336>Zaman sınırına ulaştın ve günü yetiştiremedin.</color>" : "<color=#F44336>Hata sınırını aşmıştın veya hedeflere ulaşamadın.</color>"));
 
@@ -627,6 +638,12 @@ public class GameManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
+        Image bgImage = gameOverPanel.GetComponent<Image>();
+        if (bgImage != null)
+        {
+            bgImage.color = new Color(0.05f, 0.35f, 0.15f, 0.95f); // Koyu yeşil tonu
+        }
+
         if (BoxSpawner.Instance != null)
         {
             BoxSpawner.Instance.StopSpawning();
@@ -636,11 +653,11 @@ public class GameManager : MonoBehaviour
         gameOverText.color = Color.white;
         gameOverText.text = $"<align=center><color=#4CAF50><size=130%>TEBRİKLER! OYUNU KAZANDINIZ</size></color>\n\n" +
                             "<color=#CCCCCC>7 günlük fabrika kalite kontrol vardiyasını başarıyla tamamladın ve usta bir fabrika işçisi olduğunu kanıtladın!</color>\n\n" +
-                            $"<color=#AAAAAA><size=90%>────────── GENEL BİLANÇO ──────────</size></color>\n" +
+                            $"<color=#AAAAAA><size=90%>─── PERFORMANS ÖZETİ ───</size></color>\n" +
                             $"Toplam Doğru: <color=#4CAF50><b>{Score}</b></color>\n" +
                             $"Yaptığın Toplam Hata: <color=#F44336><b>{Errors}</b></color>\n" +
-                            $"<color=#AAAAAA><size=90%>───────────────────────────────────</size></color>\n\n" +
-                            "<color=#FFC107>Yeniden başlamak için aşağıdaki butonu kullanabilirsin.</color></align>";
+                            $"Kazanılan Maaş: <color=#FFD700><b>{TotalSalary} TL</b></color>\n" +
+                            $"<color=#AAAAAA><size=90%>─────────────────────</size></color></align>";
     }
 
     public void TriggerGameOver(string reason)
@@ -660,6 +677,12 @@ public class GameManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
+        Image bgImage = gameOverPanel.GetComponent<Image>();
+        if (bgImage != null)
+        {
+            bgImage.color = new Color(0.35f, 0.05f, 0.05f, 0.95f); // Koyu kırmızı tonu
+        }
+
         if (BoxSpawner.Instance != null)
         {
             BoxSpawner.Instance.StopSpawning();
@@ -667,12 +690,17 @@ public class GameManager : MonoBehaviour
 
         // Metin rengini BEYAZ yapıp zengin metin (Rich Text) ile renklendir
         gameOverText.color = Color.white;
-        gameOverText.text = $"<color=#FF3B30><size=130%><b>[ DENETİM BAŞARISIZ ]</b></size></color>\n\n" +
-                            $"<color=#AAAAAA><size=90%>─────── İŞTEN ÇIKARMA NEDENİ ───────</size></color>\n" +
+        
+        string salaryText = TotalSalary >= 0 
+            ? $"Kovuldun! Tazminat Olarak Yatan Para: <b>{TotalSalary} TL</b>"
+            : $"Kovuldun! Giderken biraz paran düştü <b>{TotalSalary} TL</b>";
+
+        gameOverText.text = $"<align=center><color=#FF3B30><size=130%><b>[ DENETİM BAŞARISIZ ]</b></size></color>\n\n" +
+                            $"<color=#AAAAAA><size=90%>─── İŞTEN ÇIKARILMA NEDENİ ───</size></color>\n" +
                             $"<color=#FF453A>■</color> Sebep: <b>{reason}</b>\n\n" +
-                            $"<color=#AAAAAA><size=90%>────────── VARDİYA ÖZETİ ──────────</size></color>\n" +
-                            $"<color=#FFD60A>■</color> Çalışılan Gün Sayısı: <b>{DayManager.Instance.CurrentDay} Gün</b>\n\n" +
-                            $"<color=#8E8E93><size=80%>Yeni bir vardiyaya başlamak için butona tıklayın.</size></color>";
+                            $"<color=#AAAAAA><size=90%>───── VARDİYA ÖZETİ ─────</size></color>\n" +
+                            $"<color=#FFD60A>■</color> Çalışılan Gün Sayısı: <b>{DayManager.Instance.CurrentDay} Gün</b>\n" +
+                            $"<color=#FFD60A>■</color> {salaryText}</align>";
 
         // Lose müziğini gecikmeli başlat
         StartCoroutine(PlayLoseMusicDelayed(1.2f));
@@ -863,15 +891,24 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame)
+        if (UnityEngine.InputSystem.Keyboard.current != null)
         {
-            if (CurrentState == GameState.Playing)
+            if (UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame)
             {
-                PauseGame();
+                if (CurrentState == GameState.Playing)
+                {
+                    PauseGame();
+                }
+                else if (CurrentState == GameState.Paused)
+                {
+                    ResumeGame();
+                }
             }
-            else if (CurrentState == GameState.Paused)
+
+            // Geliştirici Kısayolu: Hızlı Gün Atlama (F2)
+            if (UnityEngine.InputSystem.Keyboard.current.f2Key.wasPressedThisFrame && CurrentState == GameState.Playing)
             {
-                ResumeGame();
+                EndDay(false);
             }
         }
     }

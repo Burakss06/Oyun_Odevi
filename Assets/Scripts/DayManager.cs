@@ -193,6 +193,8 @@ public class DayManager : MonoBehaviour
         }
     }
 
+    public float RemainingTime => Mathf.Max(0f, timer);
+
     private void Update()
     {
         if (isTimerRunning && GameManager.Instance != null && GameManager.Instance.CurrentState == GameManager.GameState.Playing)
@@ -217,7 +219,7 @@ public class DayManager : MonoBehaviour
 
     public void ResetProgress()
     {
-        CurrentDay = 7;
+        CurrentDay = 1;
         isTimerRunning = false;
         timer = 0f;
     }
