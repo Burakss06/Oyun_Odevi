@@ -112,6 +112,14 @@ public class WeighingScale : MonoBehaviour
             currentBox.transform.position = snapPoint.position;
             currentBox.transform.rotation = Quaternion.Euler(0f, currentBox.transform.eulerAngles.y, 0f);
         }
+
+        // Sürpriz kutu tartıdayken ekranı gökkuşağı renginde dalgalandır
+        if (currentBox != null && currentBox.isMysteryBox && displayText != null)
+        {
+            float speed = 0.5f;
+            float hue = Mathf.Repeat(Time.time * speed, 1f);
+            displayText.color = Color.HSVToRGB(hue, 1f, 1f);
+        }
     }
 
     /// <summary>
@@ -174,6 +182,13 @@ public class WeighingScale : MonoBehaviour
     private void UpdateDisplay(float weight, bool isIdle)
     {
         if (displayText == null) return;
+
+        if (currentBox != null && currentBox.isMysteryBox)
+        {
+            displayText.text = "??? kg";
+            displayText.color = Color.magenta; // Sürpriz kutunun mor rengiyle uyumlu parlak magenta
+            return;
+        }
 
         if (isIdle && weight <= 0.01f)
         {

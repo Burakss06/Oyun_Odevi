@@ -100,62 +100,97 @@ public class BoxSpawner : MonoBehaviour
             selectedSpawnPoint = transform;
         }
 
-        // Rastgele bir prefab seç (Güne göre sınırla: 1. gün sadece Kapalı ve Açık kutu)
-        int maxPrefabIndex = boxPrefabs.Count;
+        // 1. Hedef paleti seç: %50 Kabul, %50 Ret (Dengeyi sağlamak için)
+        PalletTrigger.PalletType targetPallet = (Random.value > 0.5f) ? PalletTrigger.PalletType.Kabul : PalletTrigger.PalletType.Ret;
+
+        // 2. Hedef palete uygun şekillerin listesini çıkar
+        List<BoxController.BoxShape> validShapes = new List<BoxController.BoxShape>();
+        
         if (DayManager.Instance != null && DayManager.Instance.CurrentDay == 1)
         {
-            maxPrefabIndex = 2; // 0 ve 1. index (Closed ve Opened)
+            // 1. Gün kuralları sabit: Closed -> Kabul, Opened -> Ret.
+            if (targetPallet == PalletTrigger.PalletType.Kabul) validShapes.Add(BoxController.BoxShape.Closed);
+            else validShapes.Add(BoxController.BoxShape.Opened);
         }
-        int randomIndex = Random.Range(0, maxPrefabIndex);
-        GameObject selectedPrefab = boxPrefabs[randomIndex];
+        else if (GameManager.Instance != null && GameManager.Instance.DailyRules != null)
+        {
+            if (targetPallet == PalletTrigger.PalletType.Kabul)
+            {
+                // Kabul kutusu için şeklin de Kabul olması gerekir
+                foreach (var rule in GameManager.Instance.DailyRules)
+                {
+                    if (rule.Value == PalletTrigger.PalletType.Kabul) validShapes.Add(rule.Key);
+                }
+            }
+            else
+            {
+                // Ret kutusu için şekil ya Kabul ya Ret olabilir.
+                // Çeşitlilik için bütün şekilleri ekleyelim, InitializeBox içindeki kurallar onu Ret yapacaktır.
+                foreach (var rule in GameManager.Instance.DailyRules)
+                {
+                    validShapes.Add(rule.Key);
+                }
+            }
+        }
+
+        if (validShapes.Count == 0)
+        {
+            validShapes.Add(BoxController.BoxShape.Closed);
+        }
+
+        BoxController.BoxShape selectedShape = validShapes[Random.Range(0, validShapes.Count)];
+
+        // Şekle uygun prefabı bul
+        GameObject selectedPrefab = boxPrefabs[0];
+        foreach (GameObject prefab in boxPrefabs)
+        {
+            if (selectedShape == BoxController.BoxShape.Opened && prefab.name.Contains("Opened"))
+            {
+                selectedPrefab = prefab;
+                break;
+            }
+            else if (selectedShape == BoxController.BoxShape.Unfolded && prefab.name.Contains("Unfolded"))
+            {
+                selectedPrefab = prefab;
+                break;
+            }
+            else if (selectedShape == BoxController.BoxShape.Closed && !prefab.name.Contains("Opened") && !prefab.name.Contains("Unfolded"))
+            {
+                selectedPrefab = prefab;
+                break;
+            }
+        }
 
         // Kutuyu oluştur
         GameObject spawnedBox = Instantiate(selectedPrefab, selectedSpawnPoint.position, selectedSpawnPoint.rotation);
-        
-        // Objeye etkileşim sağlanabilmesi için isminin içinde "Cardboard Box" geçmesi gerekiyor. 
-        // PlayerInteraction raycast'i ismi kontrol ettiği için adını uygun formata çeviriyoruz.
         spawnedBox.name = "Cardboard Box_" + System.Guid.NewGuid().ToString().Substring(0, 5);
 
-        // BoxController bileşenini al veya ekle
         BoxController boxController = spawnedBox.GetComponent<BoxController>();
         if (boxController == null)
         {
             boxController = spawnedBox.AddComponent<BoxController>();
         }
 
-        // Kutu şeklini (Shape) prefab ismine göre belirle
-        if (selectedPrefab.name.Contains("Opened"))
+        boxController.Shape = selectedShape;
+
+        // 7. Gün ve Kapalı kutu ise %25 şansla Sürpriz Kutu (Mystery Box) yap
+        if (DayManager.Instance != null && DayManager.Instance.CurrentDay == 7 && selectedShape == BoxController.BoxShape.Closed)
         {
-            boxController.Shape = BoxController.BoxShape.Opened;
-        }
-        else if (selectedPrefab.name.Contains("Unfolded"))
-        {
-            boxController.Shape = BoxController.BoxShape.Unfolded;
-        }
-        else
-        {
-            boxController.Shape = BoxController.BoxShape.Closed;
-            
-            // 7. Gün ve Kapalı kutu ise %25 şansla Sürpriz Kutu (Mystery Box) yap
-            if (DayManager.Instance != null && DayManager.Instance.CurrentDay == 7)
+            if (Random.value <= 0.25f)
             {
-                if (Random.value <= 0.25f)
+                boxController.isMysteryBox = true;
+                Renderer[] renderers = spawnedBox.GetComponentsInChildren<Renderer>();
+                foreach (Renderer ren in renderers)
                 {
-                    boxController.isMysteryBox = true;
-                    // Rengini belirgin bir mor (magenta) yapalım
-                    Renderer[] renderers = spawnedBox.GetComponentsInChildren<Renderer>();
-                    foreach (Renderer ren in renderers)
-                    {
-                        if (ren is LineRenderer) continue;
-                        ren.material.color = Color.magenta;
-                    }
-                    spawnedBox.name = "Cardboard Box (Mystery)_" + System.Guid.NewGuid().ToString().Substring(0, 5);
+                    if (ren is LineRenderer) continue;
+                    ren.material.color = Color.magenta;
                 }
+                spawnedBox.name = "Cardboard Box (Mystery)_" + System.Guid.NewGuid().ToString().Substring(0, 5);
             }
         }
 
         // Kutuyu o günün kurallarına göre kur
-        boxController.InitializeBox(config);
+        boxController.InitializeBox(config, targetPallet);
 
         // GameManager'a yeni kutunun üretildiğini bildir
         GameManager.Instance.RegisterBoxSpawn();

@@ -250,7 +250,7 @@ public class NotepadUI : MonoBehaviour
                 string shapeName = "";
                 if (rule.Key == BoxController.BoxShape.Closed) shapeName = "Kapalı Kutu";
                 else if (rule.Key == BoxController.BoxShape.Opened) shapeName = "Açık Kutu";
-                else if (rule.Key == BoxController.BoxShape.Unfolded) shapeName = "Düz Karton";
+                else if (rule.Key == BoxController.BoxShape.Unfolded) shapeName = "Uzun Kutu";
 
                 string palletName = (rule.Value == PalletTrigger.PalletType.Kabul) 
                     ? "<b><color=#2E7D32>KABUL</color></b>" 
@@ -278,7 +278,9 @@ public class NotepadUI : MonoBehaviour
         }
         if (config.allowWrongColorDefect)
         {
-            text += $"• <color=#2E7D32>Yeşil Boyalı</color> ➔ <b><color=#C62828>RET</color></b>\n";
+            string targetName = (GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Kabul) ? "KABUL" : "RET";
+            string targetColor = (GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Kabul) ? "#2E7D32" : "#C62828";
+            text += $"• <color=#2E7D32>Yeşil Boyalı</color> ➔ <b><color={targetColor}>{targetName}</color></b>\n";
         }
         if (config.allowSizeAnomalyDefect)
         {
@@ -286,7 +288,9 @@ public class NotepadUI : MonoBehaviour
         }
         if (config.allowWeightDefect)
         {
-            text += $"• Ağır Kutu (≥10kg) ➔ <b><color=#C62828>RET</color></b> (Tart!)\n";
+            string targetName = (GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Kabul) ? "KABUL" : "RET";
+            string targetColor = (GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Kabul) ? "#2E7D32" : "#C62828";
+            text += $"• Ağır Kutu (≥10kg) ➔ <b><color={targetColor}>{targetName}</color></b> (Tart!)\n";
         }
         if (currentDay == 7)
         {
