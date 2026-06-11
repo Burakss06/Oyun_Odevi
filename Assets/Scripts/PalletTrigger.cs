@@ -36,40 +36,39 @@ public class PalletTrigger : MonoBehaviour
         }
         else
         {
-            bool hasActiveDefect = false;
-            if (DayManager.Instance != null && box.CurrentDefect != BoxController.DefectType.None)
-            {
-                DayConfig config = DayManager.Instance.GetCurrentDayConfig();
-                if (config.allowBarcodeDefect && box.CurrentDefect == BoxController.DefectType.BarcodeAnomaly) hasActiveDefect = true;
-                if (config.allowWrongColorDefect && box.CurrentDefect == BoxController.DefectType.WrongColor) hasActiveDefect = true;
-                if (config.allowSizeAnomalyDefect && box.CurrentDefect == BoxController.DefectType.SizeAnomaly) hasActiveDefect = true;
-            }
+            PalletType targetPallet = PalletType.Kabul;
 
-            if (hasActiveDefect)
-            {
-                isCorrect = (palletType == PalletType.Ret);
-            }
-            else if (DayManager.Instance != null)
+            if (DayManager.Instance != null)
             {
                 DayConfig config = DayManager.Instance.GetCurrentDayConfig();
-                if (config.allowWeightDefect && box.Weight >= 10.0f)
+                
+                if (box.CurrentDefect == BoxController.DefectType.BarcodeAnomaly && config.allowBarcodeDefect)
                 {
-                    isCorrect = (palletType == PalletType.Ret);
+                    targetPallet = PalletType.Ret;
+                }
+                else if (box.CurrentDefect == BoxController.DefectType.SizeAnomaly && config.allowSizeAnomalyDefect)
+                {
+                    targetPallet = PalletType.Ret;
+                }
+                else if (box.CurrentDefect == BoxController.DefectType.WrongColor && config.allowWrongColorDefect)
+                {
+                    targetPallet = GameManager.Instance.ColorDefectRule;
+                }
+                else if (config.allowWeightDefect && box.Weight >= 10.0f)
+                {
+                    targetPallet = GameManager.Instance.WeightDefectRule;
                 }
                 else
                 {
                     if (GameManager.Instance != null && GameManager.Instance.DailyRules != null && 
-                        GameManager.Instance.DailyRules.TryGetValue(box.Shape, out var targetPallet))
+                        GameManager.Instance.DailyRules.TryGetValue(box.Shape, out var shapePallet))
                     {
-                        isCorrect = (palletType == targetPallet);
-                    }
-                    else
-                    {
-                        bool isDefective = box.IsDefective;
-                        isCorrect = (palletType == PalletType.Kabul) ? !isDefective : isDefective;
+                        targetPallet = shapePallet;
                     }
                 }
             }
+
+            isCorrect = (palletType == targetPallet);
         }
 
         if (GameManager.Instance != null)

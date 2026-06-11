@@ -62,6 +62,8 @@ public class GameManager : MonoBehaviour
 
     public System.Collections.Generic.Dictionary<BoxController.BoxShape, PalletTrigger.PalletType> DailyRules { get; private set; }
     public string ValidBarcodeNumber { get; private set; } = "";
+    public PalletTrigger.PalletType WeightDefectRule { get; private set; } = PalletTrigger.PalletType.Ret;
+    public PalletTrigger.PalletType ColorDefectRule { get; private set; } = PalletTrigger.PalletType.Ret;
 
     private Button muteButton;
     private bool isMuted = false;
@@ -158,6 +160,8 @@ public class GameManager : MonoBehaviour
         {
             DailyRules[BoxController.BoxShape.Closed] = PalletTrigger.PalletType.Kabul;
             DailyRules[BoxController.BoxShape.Opened] = PalletTrigger.PalletType.Ret;
+            WeightDefectRule = PalletTrigger.PalletType.Ret;
+            ColorDefectRule = PalletTrigger.PalletType.Ret;
             return;
         }
 
@@ -189,6 +193,10 @@ public class GameManager : MonoBehaviour
                 validRoll = true;
             }
         }
+
+        // Renk ve Ağırlık kurallarını rastgele belirle (Kabul veya Ret)
+        WeightDefectRule = (Random.value > 0.5f) ? PalletTrigger.PalletType.Kabul : PalletTrigger.PalletType.Ret;
+        ColorDefectRule = (Random.value > 0.5f) ? PalletTrigger.PalletType.Kabul : PalletTrigger.PalletType.Ret;
 
         // Barkod günü aktifse yeni geçerli barkod numarası belirle
         DayConfig cfg = DayManager.Instance.GetCurrentDayConfig();
@@ -313,14 +321,6 @@ public class GameManager : MonoBehaviour
         {
             startImg.color = originalStartButtonColor;
         }
-        if (startDayButton.transform.parent.GetComponent<UnityEngine.UI.LayoutGroup>() == null)
-        {
-            RectTransform startRect = startDayButton.GetComponent<RectTransform>();
-            if (startRect != null)
-            {
-                startRect.anchoredPosition = originalStartButtonPosition;
-            }
-        }
 
         // Mute butonunu diğer günlerin brifing ekranında gizleyelim
         if (muteButton != null)
@@ -339,6 +339,32 @@ public class GameManager : MonoBehaviour
 
             DayConfig config = DayManager.Instance.GetCurrentDayConfig();
             briefingTitleText.text = $"<color=#00BCD4>{config.dayNumber}. GÜN</color>";
+
+            // Çok fazla kural olduğunda (örneğin 7. gün veya 3 ve üzeri ekstra kural varken)
+            // butonun yazılarla çakışmaması için Y pozisyonunu aşağı kaydırıyoruz.
+            if (startDayButton.transform.parent.GetComponent<UnityEngine.UI.LayoutGroup>() == null)
+            {
+                RectTransform startRect = startDayButton.GetComponent<RectTransform>();
+                if (startRect != null)
+                {
+                    int activeRulesCount = 0;
+                    if (config.allowBarcodeDefect) activeRulesCount++;
+                    if (config.allowWrongColorDefect) activeRulesCount++;
+                    if (config.allowSizeAnomalyDefect) activeRulesCount++;
+                    if (config.allowWeightDefect) activeRulesCount++;
+                    if (config.dayNumber == 7) activeRulesCount++;
+
+                    if (activeRulesCount >= 3)
+                    {
+                        // Sağa sola kaydırmadan sadece Y ekseninde aşağı çekiyoruz (45 birim)
+                        startRect.anchoredPosition = new Vector2(originalStartButtonPosition.x, originalStartButtonPosition.y - 45f);
+                    }
+                    else
+                    {
+                        startRect.anchoredPosition = originalStartButtonPosition;
+                    }
+                }
+            }
             
             string rulesText = "";
             if (config.dayNumber == 1)
@@ -354,7 +380,7 @@ public class GameManager : MonoBehaviour
                     string shapeName = "";
                     if (rule.Key == BoxController.BoxShape.Closed) shapeName = "Kapalı kutular";
                     else if (rule.Key == BoxController.BoxShape.Opened) shapeName = "Açık (kanatlı) kutular";
-                    else if (rule.Key == BoxController.BoxShape.Unfolded) shapeName = "Düz kartonlar";
+                    else if (rule.Key == BoxController.BoxShape.Unfolded) shapeName = "Uzun kutular";
 
                     string palletColor = (rule.Value == PalletTrigger.PalletType.Kabul) ? "#4CAF50" : "#F44336";
                     string palletName = (rule.Value == PalletTrigger.PalletType.Kabul) ? "KABUL" : "RET";
@@ -369,7 +395,9 @@ public class GameManager : MonoBehaviour
             }
             if (config.allowWrongColorDefect)
             {
-                rulesText += $"<color=#F44336><b>[RENK KONTROLÜ]</b></color>\n <color=#555555>■</color> Kırmızı boyalı hatalı kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
+                string targetName = (ColorDefectRule == PalletTrigger.PalletType.Kabul) ? "KABUL" : "RET";
+                string targetColor = (ColorDefectRule == PalletTrigger.PalletType.Kabul) ? "#4CAF50" : "#F44336";
+                rulesText += $"<color=#4CAF50><b>[RENK KONTROLÜ]</b></color>\n <color=#555555>■</color> Yeşil boyalı hatalı kutular <color=#888888>→</color> <color={targetColor}><b>{targetName}</b></color>\n";
             }
             if (config.allowSizeAnomalyDefect)
             {
@@ -377,7 +405,9 @@ public class GameManager : MonoBehaviour
             }
             if (config.allowWeightDefect)
             {
-                rulesText += $"<color=#9C27B0><b>[AĞIRLIK KONTROLÜ]</b></color>\n <color=#555555>■</color> 10.0 kg ve üzeri ağır kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
+                string targetName = (WeightDefectRule == PalletTrigger.PalletType.Kabul) ? "KABUL" : "RET";
+                string targetColor = (WeightDefectRule == PalletTrigger.PalletType.Kabul) ? "#4CAF50" : "#F44336";
+                rulesText += $"<color=#9C27B0><b>[AĞIRLIK KONTROLÜ]</b></color>\n <color=#555555>■</color> 10.0 kg ve üzeri ağır kutular <color=#888888>→</color> <color={targetColor}><b>{targetName}</b></color>\n";
             }
             if (config.dayNumber == 7)
             {

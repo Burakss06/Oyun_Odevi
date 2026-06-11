@@ -152,10 +152,47 @@ public class PlayerInteraction : MonoBehaviour
 
     void LateUpdate()
     {
-        // Taşıma mantığı (Pürüzsüz takip)
+        // Taşırma mantığı (Pürüzsüz takip ve engelleri algılama)
         if (heldObject != null)
         {
-            heldObject.transform.position = Vector3.Lerp(heldObject.transform.position, holdPoint.position, Time.deltaTime * followSpeed);
+            Vector3 targetPos = holdPoint.position;
+            Vector3 startPoint = playerCamera.position;
+            Vector3 direction = targetPos - startPoint;
+            float maxDistance = direction.magnitude;
+
+            if (maxDistance > 0.01f)
+            {
+                // Kutunun boyutuna göre dinamik bir yarıçap belirle
+                float radius = 0.2f;
+                BoxCollider boxCol = heldObject.GetComponent<BoxCollider>();
+                if (boxCol == null) boxCol = heldObject.GetComponentInChildren<BoxCollider>();
+                if (boxCol != null)
+                {
+                    Vector3 worldSize = Vector3.Scale(boxCol.size, heldObject.transform.lossyScale);
+                    radius = Mathf.Clamp(Mathf.Min(worldSize.x, worldSize.y, worldSize.z) * 0.45f, 0.15f, 0.3f);
+                }
+
+                // Kameradan holdPoint'e doğru spherecast atarak engelleri kontrol et
+                RaycastHit[] hits = Physics.SphereCastAll(startPoint, radius, direction.normalized, maxDistance);
+                System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+                foreach (RaycastHit hit in hits)
+                {
+                    // Oyuncu objelerini, eldeki kutuyu ve tetikleyicileri (trigger) görmezden gel
+                    if (hit.collider.gameObject != gameObject &&
+                        !hit.collider.transform.IsChildOf(transform) &&
+                        hit.collider.gameObject != heldObject &&
+                        !hit.collider.transform.IsChildOf(heldObject.transform) &&
+                        !hit.collider.isTrigger)
+                    {
+                        // Kutunun engele girmesini engellemek için pozisyonu sınırla
+                        targetPos = startPoint + direction.normalized * hit.distance;
+                        break;
+                    }
+                }
+            }
+
+            heldObject.transform.position = Vector3.Lerp(heldObject.transform.position, targetPos, Time.deltaTime * followSpeed);
             heldObject.transform.rotation = Quaternion.Slerp(heldObject.transform.rotation, holdPoint.rotation, Time.deltaTime * followSpeed);
         }
 

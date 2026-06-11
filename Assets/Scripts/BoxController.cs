@@ -43,26 +43,40 @@ public class BoxController : MonoBehaviour
             // Sürpriz kutular banttan düşerse hata sayılmasın, oyuncu palete koyup şansını denemelidir
             if (isMysteryBox) return false;
 
-            // Kutu şekli kurala göre Ret'e mi gitmeli?
-            bool shouldGoToRetByShape = false;
-            if (GameManager.Instance.DailyRules.TryGetValue(Shape, out var targetPallet))
-            {
-                shouldGoToRetByShape = (targetPallet == PalletTrigger.PalletType.Ret);
-            }
+            // Kutunun gitmesi gereken hedef paleti hesaplayalım
+            PalletTrigger.PalletType targetPallet = PalletTrigger.PalletType.Kabul;
 
-            // Aktif renk ve boyut hataları da her zaman Ret'e gitmelidir
-            bool hasActiveDefect = false;
             if (DayManager.Instance != null)
             {
                 DayConfig config = DayManager.Instance.GetCurrentDayConfig();
-                if (config.allowBarcodeDefect && currentDefect == DefectType.BarcodeAnomaly) hasActiveDefect = true;
-                if (config.allowWrongColorDefect && currentDefect == DefectType.WrongColor) hasActiveDefect = true;
-                if (config.allowSizeAnomalyDefect && currentDefect == DefectType.SizeAnomaly) hasActiveDefect = true;
-                // Ağırlık hatası: 10 kg ve üzeri kutular defolu sayılır
-                if (config.allowWeightDefect && weight >= 10.0f) hasActiveDefect = true;
+                
+                if (config.allowBarcodeDefect && currentDefect == DefectType.BarcodeAnomaly)
+                {
+                    targetPallet = PalletTrigger.PalletType.Ret;
+                }
+                else if (config.allowSizeAnomalyDefect && currentDefect == DefectType.SizeAnomaly)
+                {
+                    targetPallet = PalletTrigger.PalletType.Ret;
+                }
+                else if (config.allowWrongColorDefect && currentDefect == DefectType.WrongColor)
+                {
+                    targetPallet = GameManager.Instance.ColorDefectRule;
+                }
+                else if (config.allowWeightDefect && weight >= 10.0f)
+                {
+                    targetPallet = GameManager.Instance.WeightDefectRule;
+                }
+                else
+                {
+                    if (GameManager.Instance.DailyRules.TryGetValue(Shape, out var shapePallet))
+                    {
+                        targetPallet = shapePallet;
+                    }
+                }
             }
 
-            return shouldGoToRetByShape || hasActiveDefect;
+            // Eğer hedef palet Ret ise kutu defoludur (banttan düşerse hata sayılır)
+            return targetPallet == PalletTrigger.PalletType.Ret;
         }
     }
 
@@ -84,56 +98,133 @@ public class BoxController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
     }
 
-    public void InitializeBox(DayConfig config)
+    public void InitializeBox(DayConfig config, PalletTrigger.PalletType targetPallet)
     {
         if (isMysteryBox)
         {
             currentDefect = DefectType.None;
+            weight = Random.Range(3.0f, 8.0f);
         }
-        else
+        else if (targetPallet == PalletTrigger.PalletType.Kabul)
         {
-            // Kutunun defolu olup olmayacağına karar ver
-            float randomVal = Random.value;
-            if (randomVal <= config.defectSpawnChance)
-            {
-                // O gün aktif olan kusur türlerini listele
-                List<DefectType> allowedDefects = new List<DefectType>();
-                if (config.allowBarcodeDefect) allowedDefects.Add(DefectType.BarcodeAnomaly);
-                if (config.allowWrongColorDefect) allowedDefects.Add(DefectType.WrongColor);
-                if (config.allowSizeAnomalyDefect) allowedDefects.Add(DefectType.SizeAnomaly);
+            // KABUL kutusu olmalı:
+            // 1. Barkod ve Boyut hatası kesinlikle olmamalı (çünkü bunlar her zaman Ret)
+            currentDefect = DefectType.None;
 
-                if (allowedDefects.Count > 0)
+            // 2. Renk kuralı kontrolü
+            if (config.allowWrongColorDefect)
+            {
+                if (GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Kabul)
                 {
-                    // Aktif kusurlardan birini rastgele seç
-                    currentDefect = allowedDefects[Random.Range(0, allowedDefects.Count)];
+                    // Eğer Yeşil kutular Kabul ediliyorsa, %40 şansla yeşil yapabiliriz
+                    currentDefect = (Random.value < 0.4f) ? DefectType.WrongColor : DefectType.None;
                 }
                 else
                 {
+                    // Yeşil kutular Ret ediliyorsa, kesinlikle yeşil yapma
                     currentDefect = DefectType.None;
+                }
+            }
+
+            // 3. Ağırlık kuralı kontrolü
+            if (config.allowWeightDefect)
+            {
+                if (GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Kabul)
+                {
+                    // Eğer ağır kutular Kabul ediliyorsa, %40 şansla ağır yapabiliriz
+                    weight = (Random.value < 0.4f) ? Random.Range(10.0f, 15.0f) : Random.Range(3.0f, 9.9f);
+                }
+                else
+                {
+                    // Ağır kutular Ret ediliyorsa, kesinlikle normal ağırlık yap
+                    weight = Random.Range(3.0f, 9.9f);
                 }
             }
             else
             {
-                currentDefect = DefectType.None;
-            }
-        }
-
-        // Ağırlık ataması
-        if (config.allowWeightDefect)
-        {
-            // 6. gün ve sonrası: %40 ağır kutu, %60 normal kutu
-            if (Random.value < 0.4f)
-            {
-                weight = Random.Range(10.0f, 15.0f); // Ağır (defolu)
-            }
-            else
-            {
-                weight = Random.Range(3.0f, 9.9f); // Normal
+                weight = Random.Range(3.0f, 8.0f);
             }
         }
         else
         {
-            weight = Random.Range(3.0f, 8.0f); // Standart günler
+            // RET kutusu olmalı:
+            // Eğer kutunun kendi şekli zaten Ret ise, herhangi bir ek kusura ihtiyacı olmayabilir.
+            // Ama yine de çeşitlilik olsun diye kusurlar ekleyebiliriz, ancak bu kusurlar Kabul'e gitmemeli!
+            
+            bool isRetByShape = false;
+            if (GameManager.Instance != null && GameManager.Instance.DailyRules != null &&
+                GameManager.Instance.DailyRules.TryGetValue(Shape, out var shapePallet))
+            {
+                isRetByShape = (shapePallet == PalletTrigger.PalletType.Ret);
+            }
+            else
+            {
+                isRetByShape = (Shape == BoxShape.Opened); // 1. Gün varsayılan
+            }
+
+            if (isRetByShape)
+            {
+                // Zaten şekli yüzünden Ret gidiyor. Kusursuz olabilir veya Ret'e giden kusurlar alabilir.
+                currentDefect = DefectType.None;
+                weight = Random.Range(3.0f, 9.9f);
+
+                // %30 ihtimalle Ret olan diğer kusurlardan birini ekle
+                if (Random.value < 0.3f)
+                {
+                    List<DefectType> allowedRetDefects = new List<DefectType>();
+                    if (config.allowBarcodeDefect) allowedRetDefects.Add(DefectType.BarcodeAnomaly);
+                    if (config.allowSizeAnomalyDefect) allowedRetDefects.Add(DefectType.SizeAnomaly);
+                    if (config.allowWrongColorDefect && GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Ret)
+                    {
+                        allowedRetDefects.Add(DefectType.WrongColor);
+                    }
+
+                    if (allowedRetDefects.Count > 0)
+                    {
+                        currentDefect = allowedRetDefects[Random.Range(0, allowedRetDefects.Count)];
+                    }
+                }
+
+                if (config.allowWeightDefect && GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Ret && Random.value < 0.3f)
+                {
+                    weight = Random.Range(10.0f, 15.0f);
+                }
+            }
+            else
+            {
+                // Şekli Kabul'e gidiyor, bu yüzden onu Ret yapmak için MUTLAKA Ret'e giden bir kusur vermeliyiz!
+                List<DefectType> possibleRetDefects = new List<DefectType>();
+                if (config.allowBarcodeDefect) possibleRetDefects.Add(DefectType.BarcodeAnomaly);
+                if (config.allowSizeAnomalyDefect) possibleRetDefects.Add(DefectType.SizeAnomaly);
+                if (config.allowWrongColorDefect && GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Ret)
+                {
+                    possibleRetDefects.Add(DefectType.WrongColor);
+                }
+
+                bool gaveDefect = false;
+                if (possibleRetDefects.Count > 0 && Random.value < 0.7f)
+                {
+                    currentDefect = possibleRetDefects[Random.Range(0, possibleRetDefects.Count)];
+                    gaveDefect = true;
+                    weight = Random.Range(3.0f, 9.9f);
+                }
+
+                if (!gaveDefect && config.allowWeightDefect && GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Ret)
+                {
+                    // Ağırlıkla Ret yap
+                    weight = Random.Range(10.0f, 15.0f);
+                    currentDefect = DefectType.None;
+                    gaveDefect = true;
+                }
+                
+                if (!gaveDefect)
+                {
+                    // Eğer başka hiçbir şekilde Ret yapamıyorsak (örn. 1. Gün ya da henüz kusur açılmamışsa),
+                    // Barkod hatası verelim (her zaman aktiftir veya her zaman Ret'tir)
+                    currentDefect = DefectType.BarcodeAnomaly;
+                    weight = Random.Range(3.0f, 9.9f);
+                }
+            }
         }
 
         // Barkod günü aktifse tüm kutulara barkod numarası ata
@@ -142,7 +233,6 @@ public class BoxController : MonoBehaviour
             string validNum = GameManager.Instance.ValidBarcodeNumber;
             if (currentDefect == DefectType.BarcodeAnomaly)
             {
-                // Hatalı kutu: geçerli numaradan farklı rastgele 7 haneli numara
                 string invalid;
                 do { invalid = Random.Range(1000000, 9999999).ToString(); }
                 while (invalid == validNum);
@@ -150,14 +240,11 @@ public class BoxController : MonoBehaviour
             }
             else
             {
-                // Sağlam kutu: geçerli barkod numarası
                 BarcodeNumber = validNum;
             }
         }
 
         // Kutu kapağı açıksa (Opened veya Unfolded), içini kodla doldur
-        // Bunu görsel kusur uygulanmadan ÖNCE yapıyoruz, böylece boyut hatası (SizeAnomaly)
-        // tüm kutuyu ve içindeki eşyaları orantılı olarak küçültür/büyütür, eşyalar taşmaz.
         if (Shape == BoxShape.Opened || Shape == BoxShape.Unfolded)
         {
             FillBoxWithOfficeProps();
@@ -235,25 +322,28 @@ public class BoxController : MonoBehaviour
         float halfY = bounds.extents.y / transform.lossyScale.y;
         float halfZ = bounds.extents.z / transform.lossyScale.z;
 
-        // 4 yüzey için pozisyon ve rotasyonlar (Ön, Arka, Sol, Sağ)
-        // Barkoda denk gelmemesi için yükseklik merkezde (0), barkod ise aşağıda (-0.55).
+        // 6 yüzey için pozisyon ve rotasyonlar (Ön, Arka, Sol, Sağ, Üst, Alt)
         Vector3[] positions = new Vector3[]
         {
             new Vector3(0, 0, -(halfZ + 0.001f)), // Ön
             new Vector3(0, 0, (halfZ + 0.001f)),  // Arka
             new Vector3(-(halfX + 0.001f), 0, 0), // Sol
-            new Vector3((halfX + 0.001f), 0, 0)   // Sağ
+            new Vector3((halfX + 0.001f), 0, 0),  // Sağ
+            new Vector3(0, (halfY + 0.001f), 0),  // Üst
+            new Vector3(0, -(halfY + 0.001f), 0)  // Alt
         };
         
         Vector3[] rotations = new Vector3[]
         {
             new Vector3(0, 0, 0),    // Ön
             new Vector3(0, 180, 0),  // Arka
-            new Vector3(0, 90, 0),   // Sol (düzeltildi)
-            new Vector3(0, -90, 0)   // Sağ (düzeltildi)
+            new Vector3(0, 90, 0),   // Sol
+            new Vector3(0, -90, 0),  // Sağ
+            new Vector3(90, 0, 0),   // Üst
+            new Vector3(-90, 0, 0)   // Alt
         };
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 6; i++)
         {
             GameObject qMark = new GameObject("MysteryMark_" + i);
             qMark.transform.SetParent(transform);
@@ -608,6 +698,21 @@ public class BoxController : MonoBehaviour
         {
             isHighlighted = false;
             ApplyHighlight(false);
+        }
+
+        // Sürpriz kutunun gökkuşağı rengi geçişi efekti
+        if (isMysteryBox)
+        {
+            float speed = 0.5f;
+            float hue = Mathf.Repeat(Time.time * speed, 1f);
+            Color rainbowColor = Color.HSVToRGB(hue, 1f, 1f);
+
+            Renderer[] renderers = GetComponentsInChildren<Renderer>();
+            foreach (Renderer ren in renderers)
+            {
+                if (ren is LineRenderer || ren.gameObject.name.Contains("Barcode") || ren.gameObject.name.Contains("MysteryMark")) continue;
+                ren.material.color = rainbowColor;
+            }
         }
 
         // Eğer değerlendirilmediyse ve banttan aşağı veya sahne dışına düştüyse (Y pozisyonu çok düşükse)
