@@ -904,6 +904,12 @@ public class GameManager : MonoBehaviour
                     ResumeGame();
                 }
             }
+
+            // Geliştirici testi: N tuşuna basarak sonraki güne geçiş
+            if (UnityEngine.InputSystem.Keyboard.current.nKey.wasPressedThisFrame)
+            {
+                SkipToNextDay();
+            }
         }
     }
 
@@ -976,6 +982,43 @@ public class GameManager : MonoBehaviour
         if (txt != null)
         {
             txt.text = newText;
+        }
+    }
+
+    public void SkipToNextDay()
+    {
+        if (DayManager.Instance != null)
+        {
+            Time.timeScale = 1f;
+
+            // Sahnedeki kutuları temizle
+            GameObject[] allGameObjects = FindObjectsOfType<GameObject>();
+            foreach (GameObject obj in allGameObjects)
+            {
+                if (obj != null && obj.name.StartsWith("Cardboard Box"))
+                {
+                    Destroy(obj);
+                }
+            }
+
+            // Paletleri temizle
+            PalletTrigger[] pallets = FindObjectsOfType<PalletTrigger>();
+            foreach (PalletTrigger pallet in pallets)
+            {
+                pallet.ClearStackedBoxes();
+            }
+
+            if (BoxSpawner.Instance != null)
+            {
+                BoxSpawner.Instance.StopSpawning();
+            }
+            if (DayManager.Instance != null)
+            {
+                DayManager.Instance.StopDayTimer();
+            }
+
+            DayManager.Instance.IncrementDay();
+            ShowBriefing();
         }
     }
 }
