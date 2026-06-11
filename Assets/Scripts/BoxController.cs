@@ -12,10 +12,10 @@ public class BoxController : MonoBehaviour
 
     public enum DefectType
     {
-        None,          // Sağlam (Kusursuz)
-        BarcodeAnomaly,// Hatalı Barkod
+        None,          // Sağlam
+        BarcodeAnomaly,// Barkod Hatası
         WrongColor,    // Yanlış Renk
-        SizeAnomaly    // Boyut Hatası (Çok büyük veya çok küçük)
+        SizeAnomaly    // Boyut Hatası
     }
 
     [Header("Kusur Bilgisi")]
@@ -34,16 +34,14 @@ public class BoxController : MonoBehaviour
     {
         get
         {
-            // Eğer oyun kuralları atanmamışsa varsayılan
             if (GameManager.Instance == null || GameManager.Instance.DailyRules == null)
             {
                 return currentDefect != DefectType.None;
             }
 
-            // Sürpriz kutular banttan düşerse hata sayılmasın, oyuncu palete koyup şansını denemelidir
+            // Sürpriz kutular banttan düşerse ceza yazılmasın
             if (isMysteryBox) return false;
 
-            // Kutunun gitmesi gereken hedef paleti hesaplayalım
             PalletTrigger.PalletType targetPallet = PalletTrigger.PalletType.Kabul;
 
             if (DayManager.Instance != null)
@@ -75,15 +73,14 @@ public class BoxController : MonoBehaviour
                 }
             }
 
-            // Eğer hedef palet Ret ise kutu defoludur (banttan düşerse hata sayılır)
             return targetPallet == PalletTrigger.PalletType.Ret;
         }
     }
 
     [Header("Görsel Efekt Ayarları")]
-    [SerializeField] private Color wrongColorTint = new Color(0.1f, 0.9f, 0.1f); // Yanlış renk kuralı artık yeşil (oyuncuyu ters köşe yapmak için)
+    [SerializeField] private Color wrongColorTint = new Color(0.1f, 0.9f, 0.1f); // Yeşil boyalı hatalı kutu rengi
 
-    private bool isEvaluated = false; // Palete konup değerlendirildi mi?
+    private bool isEvaluated = false;
     public bool IsEvaluated => isEvaluated;
     private Vector3 originalScale;
     private Rigidbody rb;
@@ -107,36 +104,30 @@ public class BoxController : MonoBehaviour
         }
         else if (targetPallet == PalletTrigger.PalletType.Kabul)
         {
-            // KABUL kutusu olmalı:
-            // 1. Barkod ve Boyut hatası kesinlikle olmamalı (çünkü bunlar her zaman Ret)
             currentDefect = DefectType.None;
 
-            // 2. Renk kuralı kontrolü
             if (config.allowWrongColorDefect)
             {
                 if (GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Kabul)
                 {
-                    // Eğer Yeşil kutular Kabul ediliyorsa, %40 şansla yeşil yapabiliriz
+                    // Yeşil kabul ediliyorsa %40 ihtimalle yeşil yap
                     currentDefect = (Random.value < 0.4f) ? DefectType.WrongColor : DefectType.None;
                 }
                 else
                 {
-                    // Yeşil kutular Ret ediliyorsa, kesinlikle yeşil yapma
                     currentDefect = DefectType.None;
                 }
             }
 
-            // 3. Ağırlık kuralı kontrolü
             if (config.allowWeightDefect)
             {
                 if (GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Kabul)
                 {
-                    // Eğer ağır kutular Kabul ediliyorsa, %40 şansla ağır yapabiliriz
+                    // Ağır kabul ediliyorsa %40 ihtimalle ağır yap
                     weight = (Random.value < 0.4f) ? Random.Range(10.0f, 15.0f) : Random.Range(3.0f, 9.9f);
                 }
                 else
                 {
-                    // Ağır kutular Ret ediliyorsa, kesinlikle normal ağırlık yap
                     weight = Random.Range(3.0f, 9.9f);
                 }
             }
@@ -147,10 +138,6 @@ public class BoxController : MonoBehaviour
         }
         else
         {
-            // RET kutusu olmalı:
-            // Eğer kutunun kendi şekli zaten Ret ise, herhangi bir ek kusura ihtiyacı olmayabilir.
-            // Ama yine de çeşitlilik olsun diye kusurlar ekleyebiliriz, ancak bu kusurlar Kabul'e gitmemeli!
-            
             bool isRetByShape = false;
             if (GameManager.Instance != null && GameManager.Instance.DailyRules != null &&
                 GameManager.Instance.DailyRules.TryGetValue(Shape, out var shapePallet))
@@ -159,16 +146,15 @@ public class BoxController : MonoBehaviour
             }
             else
             {
-                isRetByShape = (Shape == BoxShape.Opened); // 1. Gün varsayılan
+                isRetByShape = (Shape == BoxShape.Opened);
             }
 
             if (isRetByShape)
             {
-                // Zaten şekli yüzünden Ret gidiyor. Kusursuz olabilir veya Ret'e giden kusurlar alabilir.
+                // Şekli zaten ret, ekstra hatalar da alabilir
                 currentDefect = DefectType.None;
                 weight = Random.Range(3.0f, 9.9f);
 
-                // %30 ihtimalle Ret olan diğer kusurlardan birini ekle
                 if (Random.value < 0.3f)
                 {
                     List<DefectType> allowedRetDefects = new List<DefectType>();
@@ -192,7 +178,7 @@ public class BoxController : MonoBehaviour
             }
             else
             {
-                // Şekli Kabul'e gidiyor, bu yüzden onu Ret yapmak için MUTLAKA Ret'e giden bir kusur vermeliyiz!
+                // Şekil kabul edilse de bir kusurla ret yapılması gerekiyor
                 List<DefectType> possibleRetDefects = new List<DefectType>();
                 if (config.allowBarcodeDefect) possibleRetDefects.Add(DefectType.BarcodeAnomaly);
                 if (config.allowSizeAnomalyDefect) possibleRetDefects.Add(DefectType.SizeAnomaly);
@@ -211,7 +197,6 @@ public class BoxController : MonoBehaviour
 
                 if (!gaveDefect && config.allowWeightDefect && GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Ret)
                 {
-                    // Ağırlıkla Ret yap
                     weight = Random.Range(10.0f, 15.0f);
                     currentDefect = DefectType.None;
                     gaveDefect = true;
@@ -219,15 +204,13 @@ public class BoxController : MonoBehaviour
                 
                 if (!gaveDefect)
                 {
-                    // Eğer başka hiçbir şekilde Ret yapamıyorsak (örn. 1. Gün ya da henüz kusur açılmamışsa),
-                    // Barkod hatası verelim (her zaman aktiftir veya her zaman Ret'tir)
                     currentDefect = DefectType.BarcodeAnomaly;
                     weight = Random.Range(3.0f, 9.9f);
                 }
             }
         }
 
-        // Barkod günü aktifse tüm kutulara barkod numarası ata
+        // Barkod ata
         if (config.allowBarcodeDefect && GameManager.Instance != null)
         {
             string validNum = GameManager.Instance.ValidBarcodeNumber;
@@ -244,43 +227,32 @@ public class BoxController : MonoBehaviour
             }
         }
 
-        // Kutu kapağı açıksa (Opened veya Unfolded), içini kodla doldur
+        // Açık kutuların içini doldur
         if (Shape == BoxShape.Opened || Shape == BoxShape.Unfolded)
         {
             FillBoxWithOfficeProps();
         }
 
-        if (Shape == BoxShape.Unfolded)
-        {
-            // Kutunun altını kapatma işlemini kod yerine Unity üzerinden manuel Quad ekleyerek çözeceğiz.
-        }
-
-        // Kusurun görsel etkilerini uygula
         ApplyVisualDefect();
     }
 
     private void CreateBarcodeUI()
     {
-        // Kutunun gerçek fiziksel boyutlarını al (Renderer'dan) - Bu yöntem daha önce doğru çalışıyordu
         Renderer boxRenderer = GetComponentInChildren<Renderer>();
         Bounds bounds = (boxRenderer != null) ? boxRenderer.bounds : new Bounds(transform.position, Vector3.one);
 
-        // Yerel Z boyutu ile ön yüzeye tam yapış
         float halfDepthLocal = bounds.extents.z / transform.lossyScale.z;
 
-        // TextMesh nesnesi oluştur
         GameObject labelObj = new GameObject("BarcodeLabel");
         labelObj.transform.SetParent(transform);
 
-        // Sağ alt köşeye yerleştir (X: sağa, Y: aşağıya doğru kaydır)
         float halfWidthLocal  = bounds.extents.x / transform.lossyScale.x;
         float halfHeightLocal = bounds.extents.y / transform.lossyScale.y;
         
-        // İlk çalışan versiyondaki pozisyon hesabı
         labelObj.transform.localPosition = new Vector3(
-            halfWidthLocal  * 0.55f,   // sağ
-           -halfHeightLocal * 0.55f,   // aşağı
-           -(halfDepthLocal + 0.001f)  // ön yüzey
+            halfWidthLocal  * 0.55f,   // sağa kaydır
+           -halfHeightLocal * 0.55f,   // aşağı kaydır
+           -(halfDepthLocal + 0.001f)  // ön yüzeye yapıştır
         );
         labelObj.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
         labelObj.transform.localScale = new Vector3(0.15f, 0.15f, 0.15f);
@@ -289,17 +261,15 @@ public class BoxController : MonoBehaviour
         tm.anchor = TextAnchor.MiddleCenter;
         tm.alignment = TextAlignment.Center;
         tm.characterSize = 0.1f;
-        tm.fontSize = 35; // Kullanıcı biraz daha büyük istemişti, 26'dan 35'e çıkardım
+        tm.fontSize = 35;
 
-        // Tüm barkodlar aynı renk ve aynı format - sadece numara farklı
         string displayNum = (BarcodeNumber != "") ? BarcodeNumber : Random.Range(1000000, 9999999).ToString();
         tm.text = "|| | ||| | ||\n" + displayNum;
-        tm.color = Color.black; // Tam siyah
+        tm.color = Color.black;
 
         MeshRenderer meshRen = labelObj.GetComponent<MeshRenderer>();
         if (meshRen != null)
         {
-            // Derinlik testini düzelten custom shader'ı uygula
             Shader depthShader = Shader.Find("Custom/TextDepthTested");
             if (depthShader != null)
             {
@@ -322,25 +292,25 @@ public class BoxController : MonoBehaviour
         float halfY = bounds.extents.y / transform.lossyScale.y;
         float halfZ = bounds.extents.z / transform.lossyScale.z;
 
-        // 6 yüzey için pozisyon ve rotasyonlar (Ön, Arka, Sol, Sağ, Üst, Alt)
+        // 6 yüzeyin pozisyon ve rotasyonları
         Vector3[] positions = new Vector3[]
         {
-            new Vector3(0, 0, -(halfZ + 0.001f)), // Ön
-            new Vector3(0, 0, (halfZ + 0.001f)),  // Arka
-            new Vector3(-(halfX + 0.001f), 0, 0), // Sol
-            new Vector3((halfX + 0.001f), 0, 0),  // Sağ
-            new Vector3(0, (halfY + 0.001f), 0),  // Üst
-            new Vector3(0, -(halfY + 0.001f), 0)  // Alt
+            new Vector3(0, 0, -(halfZ + 0.001f)),
+            new Vector3(0, 0, (halfZ + 0.001f)),
+            new Vector3(-(halfX + 0.001f), 0, 0),
+            new Vector3((halfX + 0.001f), 0, 0),
+            new Vector3(0, (halfY + 0.001f), 0),
+            new Vector3(0, -(halfY + 0.001f), 0)
         };
         
         Vector3[] rotations = new Vector3[]
         {
-            new Vector3(0, 0, 0),    // Ön
-            new Vector3(0, 180, 0),  // Arka
-            new Vector3(0, 90, 0),   // Sol
-            new Vector3(0, -90, 0),  // Sağ
-            new Vector3(90, 0, 0),   // Üst
-            new Vector3(-90, 0, 0)   // Alt
+            new Vector3(0, 0, 0),
+            new Vector3(0, 180, 0),
+            new Vector3(0, 90, 0),
+            new Vector3(0, -90, 0),
+            new Vector3(90, 0, 0),
+            new Vector3(-90, 0, 0)
         };
 
         for (int i = 0; i < 6; i++)
@@ -357,10 +327,9 @@ public class BoxController : MonoBehaviour
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
             tm.characterSize = 0.1f;
-            tm.fontSize = 120; // Devasa ve dikkat çekici
+            tm.fontSize = 120;
             tm.fontStyle = FontStyle.Bold;
             
-            // Renk değiştiren Gökkuşağı efektini ekle
             qMark.AddComponent<RainbowTextEffect>();
 
             MeshRenderer meshRen = qMark.GetComponent<MeshRenderer>();
@@ -396,11 +365,10 @@ public class BoxController : MonoBehaviour
 
         if (officePropsCache == null || officePropsCache.Length == 0)
         {
-            Debug.LogWarning("OfficeProps not found in Resources! Returning.");
             return;
         }
 
-        int itemCount = 1; // Sadece 1 nesne koy (iç içe geçmeyi önlemek için)
+        int itemCount = 1;
         Vector3 innerExtents = new Vector3(0.20f, 0.16f, 0.13f); 
         float bottomY = -innerExtents.y + 0.02f;
 
@@ -411,7 +379,7 @@ public class BoxController : MonoBehaviour
             {
                 prefab = officePropsCache[Random.Range(0, officePropsCache.Length)];
             } 
-            while (prefab.name.ToLower().Contains("book")); // Kitapları eledik
+            while (prefab.name.ToLower().Contains("book"));
             
             int spawnCount = 1;
 
@@ -419,16 +387,13 @@ public class BoxController : MonoBehaviour
             {
                 GameObject item = Instantiate(prefab, contentsRoot.transform, false);
                 
-                // Remove all colliders so it doesn't affect physics
                 Collider[] cols = item.GetComponentsInChildren<Collider>();
                 foreach (Collider c in cols) Destroy(c);
 
                 item.transform.localRotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
 
-                // Calculate bounds to scale appropriately
                 Renderer[] renderers = item.GetComponentsInChildren<Renderer>();
                 
-                // Fix Pink Material (URP Upgrade)
                 Shader urpShader = Shader.Find("Universal Render Pipeline/Lit");
                 if (urpShader == null) urpShader = Shader.Find("Standard");
                 
@@ -487,11 +452,9 @@ public class BoxController : MonoBehaviour
                         );
                     }
 
-                    // Recalculate bounds after scaling to find the bottom
                     bounds = renderers[0].bounds;
                     for (int j = 1; j < renderers.Length; j++) bounds.Encapsulate(renderers[j].bounds);
 
-                    // Offset to place the bottom of the mesh at bottomY
                     float worldOffsetToBottom = item.transform.position.y - bounds.min.y;
                     float localYOffset = worldOffsetToBottom / transform.lossyScale.y;
 
@@ -504,118 +467,13 @@ public class BoxController : MonoBehaviour
         }
     }
 
-    private void FillBoxWithItems()
-    {
-        BoxCollider col = GetComponent<BoxCollider>();
-        if (col == null) col = GetComponentInChildren<BoxCollider>();
-        if (col == null) return;
-
-        GameObject contentsRoot = new GameObject("Contents");
-        contentsRoot.transform.SetParent(transform, false);
-        contentsRoot.transform.localPosition = col.center;
-
-        int itemCount = Random.Range(4, 8); // Daha fazla eşya, daha dolu görünsün
-        
-        // ÖNEMLİ DÜZELTME: Açık kutuların collider'ı kapakları da içerdiği için dışarı taşıyorlardı.
-        // Bu yüzden standart bir kutunun gerçek iç hacmini (extents) sabit olarak tanımlıyoruz.
-        Vector3 innerExtents = new Vector3(0.20f, 0.16f, 0.13f); 
-        float bottomY = -innerExtents.y + 0.02f; // Kutunun tabanı (çok az yukarıdan başlat)
-
-        Color[] colors = {
-            new Color(0.2f, 0.4f, 0.8f),
-            new Color(0.8f, 0.2f, 0.2f),
-            new Color(0.2f, 0.7f, 0.3f),
-            new Color(0.9f, 0.7f, 0.1f),
-            new Color(0.6f, 0.2f, 0.8f),
-            new Color(1.0f, 0.5f, 0.0f)
-        };
-
-        System.Collections.Generic.List<Bounds> placedItems = new System.Collections.Generic.List<Bounds>();
-
-        for (int i = 0; i < itemCount; i++)
-        {
-            PrimitiveType type = (Random.value > 0.5f) ? PrimitiveType.Cylinder : PrimitiveType.Cube;
-            
-            // Eşyaları oransal değil sabit ebatlarla belirledik, böylece hem dolgun hem gerçekçi olacak
-            float scaleX = Random.Range(0.12f, 0.18f);
-            float scaleY = Random.Range(0.08f, 0.14f); // Eskisinden çok daha kalın ve dolgun
-            float scaleZ = Random.Range(0.12f, 0.18f);
-
-            float maxRadius = Mathf.Max(scaleX, scaleZ) * 0.75f; 
-
-            // İç duvardan güvenli mesafe
-            float maxPosX = Mathf.Max(0, innerExtents.x - maxRadius);
-            float maxPosZ = Mathf.Max(0, innerExtents.z - maxRadius);
-
-            bool isPlaced = false;
-            Vector3 finalPos = Vector3.zero;
-            Bounds proposedBounds = new Bounds();
-
-            // Çakışmayan bir yer bulmak için en fazla 25 kez dene
-            for (int attempt = 0; attempt < 25; attempt++)
-            {
-                float posX = Random.Range(-maxPosX, maxPosX);
-                float posZ = Random.Range(-maxPosZ, maxPosZ);
-                
-                // Kutunun daha dolu görünmesi için eşyaların üst üste binmesine olanak tanı (Y ekseninde)
-                float posY = bottomY + (scaleY * 0.5f) + Random.Range(0f, 0.15f);
-
-                finalPos = new Vector3(posX, posY, posZ);
-                // Çarpışma kutusunu biraz daralttık ki eşyalar birbirine iyice yanaşsın, kutu dolsun
-                proposedBounds = new Bounds(finalPos, new Vector3(scaleX, scaleY, scaleZ) * 1.05f); 
-
-                bool overlaps = false;
-                foreach (Bounds b in placedItems)
-                {
-                    if (b.Intersects(proposedBounds))
-                    {
-                        overlaps = true;
-                        break;
-                    }
-                }
-
-                if (!overlaps)
-                {
-                    isPlaced = true;
-                    placedItems.Add(proposedBounds);
-                    break;
-                }
-            }
-
-            // Eğer sığmazsa bu objeyi atla
-            if (!isPlaced) continue;
-
-            GameObject item = GameObject.CreatePrimitive(type);
-            Destroy(item.GetComponent<Collider>());
-            item.transform.SetParent(contentsRoot.transform, false);
-            item.transform.localScale = new Vector3(scaleX, scaleY, scaleZ);
-            item.transform.localPosition = finalPos;
-            
-            item.transform.localRotation = Quaternion.Euler(
-                (type == PrimitiveType.Cube) ? Random.Range(-10f, 10f) : 90f,
-                Random.Range(0f, 360f),
-                (type == PrimitiveType.Cube) ? Random.Range(-10f, 10f) : 0f
-            );
-
-            MeshRenderer ren = item.GetComponent<MeshRenderer>();
-            if (ren != null)
-            {
-                Material mat = new Material(ren.sharedMaterial);
-                mat.color = colors[Random.Range(0, colors.Length)];
-                ren.material = mat;
-            }
-        }
-    }
-
     private void ApplyVisualDefect()
     {
-        // Barkod günü ise her kutuya barkod etiketi ekle (Sürpriz kutular hariç)
         if (DayManager.Instance != null && DayManager.Instance.GetCurrentDayConfig().allowBarcodeDefect && !isMysteryBox)
         {
             CreateBarcodeUI();
         }
 
-        // Sürpriz kutu ise özel "?" tasarımlarını ekle
         if (isMysteryBox)
         {
             CreateMysteryUI();
@@ -624,35 +482,24 @@ public class BoxController : MonoBehaviour
         switch (currentDefect)
         {
             case DefectType.None:
-                // Kusursuz kutu
                 break;
 
             case DefectType.BarcodeAnomaly:
-                // Barkod hatası CreateBarcodeUI içinde halledildi
                 break;
 
             case DefectType.WrongColor:
-                // Yanlış Renk Görünümü:
-                // Kutunun tüm mesh renderer'larının materyal renklerini değiştirerek yanlış renge boya
                 Renderer[] renderers = GetComponentsInChildren<Renderer>();
                 foreach (Renderer ren in renderers)
                 {
-                    // Çizgi çizen LineRenderer'ları atla
                     if (ren is LineRenderer) continue;
-
-                    // Materyali klonla ve rengi değiştir
                     ren.material.color = wrongColorTint;
                 }
                 break;
 
             case DefectType.SizeAnomaly:
-                // Boyut Hatası Görünümü:
-                // Kutu ya çok küçük (0.70x) ya da çok büyük (1.24x) olmalı (%50 ihtimal)
-                // Bu sayede cam tünelden dışarı taşmaz ve bantta takılmaz.
                 float scaleMultiplier = (Random.value > 0.5f) ? 0.70f : 1.24f;
                 transform.localScale = originalScale * scaleMultiplier;
                 
-                // Rigidbody kütlesini boyutuna göre güncelle
                 if (rb != null)
                 {
                     rb.mass *= scaleMultiplier;
@@ -676,7 +523,7 @@ public class BoxController : MonoBehaviour
             if (enable)
             {
                 ren.material.EnableKeyword("_EMISSION");
-                ren.material.SetColor("_EmissionColor", Color.yellow * 2.5f); // Parlak sarı neon efekti
+                ren.material.SetColor("_EmissionColor", Color.yellow * 2.5f);
             }
             else
             {
@@ -688,7 +535,7 @@ public class BoxController : MonoBehaviour
 
     private void Update()
     {
-        // Keskin Göz (Sharp Eye) mantığı: Aktifse ve hatalıysa parlat
+        // Keskin Göz özelliği
         if (IsSharpEyeActive && IsDefective && !isHighlighted)
         {
             isHighlighted = true;
@@ -700,7 +547,7 @@ public class BoxController : MonoBehaviour
             ApplyHighlight(false);
         }
 
-        // Sürpriz kutunun gökkuşağı rengi geçişi efekti
+        // Sürpriz kutu renk animasyonu
         if (isMysteryBox)
         {
             float speed = 0.5f;
@@ -715,7 +562,7 @@ public class BoxController : MonoBehaviour
             }
         }
 
-        // Eğer değerlendirilmediyse ve banttan aşağı veya sahne dışına düştüyse (Y pozisyonu çok düşükse)
+        // Banttan aşağı düşme kontrolü
         if (!isEvaluated && transform.position.y < -4.0f)
         {
             isEvaluated = true;
@@ -724,19 +571,16 @@ public class BoxController : MonoBehaviour
             {
                 if (IsDefective)
                 {
-                    // Oyuncu hatalı/defolu bir kutuyu kaçırdı! Ceza puanı/hata sayacı artar.
                     GameManager.Instance.AddIncorrectChoice();
-                    Debug.Log($"Kusurlu kutu ({currentDefect}) banttan düştü! Hata sayacı arttı.");
+                    Debug.Log($"Kusurlu kutu ({currentDefect}) düştü, hata arttı.");
                 }
                 else
                 {
-                    // Sağlam kutu bant sonuna kadar gitti, bu doğru bir süreç (kaçırma sayılmaz, normal akış)
                     GameManager.Instance.BoxMissed();
-                    Debug.Log("Sağlam kutu başarıyla kontrolü geçti ve banttan düştü.");
+                    Debug.Log("Sağlam kutu düştü.");
                 }
             }
 
-            // Objeyi yok et
             Destroy(gameObject);
         }
     }

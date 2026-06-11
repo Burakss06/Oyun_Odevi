@@ -79,7 +79,7 @@ public class GameManager : MonoBehaviour
             DontDestroyOnLoad(gameObject);
             InitializeAudio();
             
-            // UI Temasını ve Animasyonlarını Yükle
+            // Arayüz temasını yükle
             if (GetComponent<UIThemeEnhancer>() == null)
             {
                 gameObject.AddComponent<UIThemeEnhancer>();
@@ -122,7 +122,7 @@ public class GameManager : MonoBehaviour
         musicSource.mute = isMuted;
         if (sfxSource != null)
         {
-            sfxSource.mute = false; // Efekt sesi her zaman açık kalır!
+            sfxSource.mute = false; // Efektler sessize alınmaz
         }
 
         if (backgroundMusic == null)
@@ -155,7 +155,7 @@ public class GameManager : MonoBehaviour
 
         int currentDay = DayManager.Instance.CurrentDay;
         
-        // 1. Gün kuralları sabit: Kapalı -> Kabul, Açık -> Ret
+        // 1. Gün kuralları sabit
         if (currentDay == 1)
         {
             DailyRules[BoxController.BoxShape.Closed] = PalletTrigger.PalletType.Kabul;
@@ -165,8 +165,7 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        // 2. Gün ve sonrasında kutu kuralları rastgele belirlenecek (zar atma)
-        // Kural: En az 1 tanesi Kabul, en az 1 tanesi Ret olacak.
+        // 2. Gün ve sonrasında kutu kuralları rastgele belirlenir (en az 1 kabul, 1 ret)
         bool validRoll = false;
         while (!validRoll)
         {
@@ -198,7 +197,7 @@ public class GameManager : MonoBehaviour
         WeightDefectRule = (Random.value > 0.5f) ? PalletTrigger.PalletType.Kabul : PalletTrigger.PalletType.Ret;
         ColorDefectRule = (Random.value > 0.5f) ? PalletTrigger.PalletType.Kabul : PalletTrigger.PalletType.Ret;
 
-        // Barkod günü aktifse yeni geçerli barkod numarası belirle
+        // Barkod günü aktifse yeni barkod numarası belirle
         DayConfig cfg = DayManager.Instance.GetCurrentDayConfig();
         if (cfg.allowBarcodeDefect)
         {
@@ -245,7 +244,7 @@ public class GameManager : MonoBehaviour
             UpdateMuteButtonText();
         }
 
-        // Dinamik olarak Pause Menu UI'ı kur ve referansları güncelle
+        // Pause Menüsünü kur
         if (pausePanel != null)
         {
             var pauseMenuUI = pausePanel.GetComponent<PauseMenuUI>();
@@ -256,9 +255,14 @@ public class GameManager : MonoBehaviour
             pauseMuteButton = pauseMenuUI.muteButton;
             sensitivitySlider = pauseMenuUI.sensitivitySlider;
             sensitivityValueText = pauseMenuUI.sensitivityValueText;
+
+            if (pauseMenuUI.quitButton != null)
+            {
+                pauseMenuUI.quitButton.onClick.AddListener(QuitGame);
+            }
         }
 
-        // Kalan kutu UI metnini dinamik olarak ScoreText'ten kopyalayarak oluştur
+        // Kalan kutu metnini oluştur
         if (scoreText != null)
         {
             GameObject remObj = Instantiate(scoreText.gameObject, scoreText.transform.parent);
@@ -322,7 +326,7 @@ public class GameManager : MonoBehaviour
             startImg.color = originalStartButtonColor;
         }
 
-        // Mute butonunu diğer günlerin brifing ekranında gizleyelim
+        // Mute butonunu oyun içi brifingde gizle
         if (muteButton != null)
         {
             muteButton.gameObject.SetActive(false);
@@ -340,8 +344,7 @@ public class GameManager : MonoBehaviour
             DayConfig config = DayManager.Instance.GetCurrentDayConfig();
             briefingTitleText.text = $"<color=#00BCD4>{config.dayNumber}. GÜN</color>";
 
-            // Çok fazla kural olduğunda (örneğin 7. gün veya 3 ve üzeri ekstra kural varken)
-            // butonun yazılarla çakışmaması için Y pozisyonunu aşağı kaydırıyoruz.
+            // 7. günde butonun yazılarla çakışmaması için Y pozisyonunu aşağı kaydırıyoruz
             if (startDayButton.transform.parent.GetComponent<UnityEngine.UI.LayoutGroup>() == null)
             {
                 RectTransform startRect = startDayButton.GetComponent<RectTransform>();
@@ -356,7 +359,7 @@ public class GameManager : MonoBehaviour
 
                     if (activeRulesCount >= 3)
                     {
-                        // Sağa sola kaydırmadan sadece Y ekseninde aşağı çekiyoruz (45 birim)
+                        // Sadece Y ekseninde aşağı çek
                         startRect.anchoredPosition = new Vector2(originalStartButtonPosition.x, originalStartButtonPosition.y - 45f);
                     }
                     else
@@ -442,11 +445,11 @@ public class GameManager : MonoBehaviour
         gameOverPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(false);
 
-        // FPS kontrolü için imleci gizle ve kilitle
+        // İmleci gizle
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // Sahnedeki tüm eski kutuları (başlangıçtaki veya önceki günden kalanlar) temizle
+        // Sahnedeki eski kutuları temizle
         GameObject[] allGameObjects = FindObjectsOfType<GameObject>();
         foreach (GameObject obj in allGameObjects)
         {
@@ -456,7 +459,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // Paletlerin üzerindeki istiflenmiş kutu listelerini temizle
+        // Paletlerin üzerindeki kutuları temizle
         PalletTrigger[] pallets = FindObjectsOfType<PalletTrigger>();
         foreach (PalletTrigger pallet in pallets)
         {
@@ -907,6 +910,16 @@ public class GameManager : MonoBehaviour
         UpdateMuteButtonText();
     }
 
+    public void QuitGame()
+    {
+        Debug.Log("[GameManager] Oyundan çıkılıyor...");
+        #if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+        #else
+        Application.Quit();
+        #endif
+    }
+
     private void UpdateMuteButtonText()
     {
         if (muteButton != null)
@@ -933,12 +946,6 @@ public class GameManager : MonoBehaviour
                 {
                     ResumeGame();
                 }
-            }
-
-            // Geliştirici testi: N tuşuna basarak sonraki güne geçiş
-            if (UnityEngine.InputSystem.Keyboard.current.nKey.wasPressedThisFrame)
-            {
-                SkipToNextDay();
             }
         }
     }

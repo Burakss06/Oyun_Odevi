@@ -1,11 +1,7 @@
 using UnityEngine;
 using TMPro;
 
-/// <summary>
-/// Tartı sistemi. Oyuncu elindeki kutuyu F tuşuyla tartıya yerleştirir,
-/// ağırlığı dijital ekranda görür, tekrar F'ye basarak kutuyu geri alır.
-/// Kutu tartıya konulduğunda fizik devre dışı kalır (bug önlenir).
-/// </summary>
+// Tartı sistemi. Kutuları tartıp ağırlığı ekranda gösterir.
 public class WeighingScale : MonoBehaviour
 {
     [Header("Ekran Referansı")]
@@ -19,25 +15,17 @@ public class WeighingScale : MonoBehaviour
     [SerializeField] private AudioClip weighSound;
 
     [Header("Görsel Ayarlar")]
-    [SerializeField] private Color normalWeightColor = new Color(0.2f, 1f, 0.4f);   // Yeşil
-    [SerializeField] private Color overweightColor = new Color(1f, 0.15f, 0.15f);    // Kırmızı
-    [SerializeField] private Color idleColor = new Color(0.3f, 0.8f, 0.3f, 0.6f);    // Soluk yeşil
+    [SerializeField] private Color normalWeightColor = new Color(0.2f, 1f, 0.4f);
+    [SerializeField] private Color overweightColor = new Color(1f, 0.15f, 0.15f);
+    [SerializeField] private Color idleColor = new Color(0.3f, 0.8f, 0.3f, 0.6f);
     [SerializeField] private float overweightThreshold = 10.0f;
 
-    // Tartıdaki kutu referansı
     private BoxController currentBox = null;
     private Rigidbody currentBoxRb = null;
     private float displayedWeight = 0f;
     private float targetWeight = 0f;
 
-    /// <summary>
-    /// Tartıda kutu var mı?
-    /// </summary>
     public bool HasBox => currentBox != null;
-
-    /// <summary>
-    /// Tartıdaki kutuyu döner (geri almak için).
-    /// </summary>
     public BoxController CurrentBox => currentBox;
 
     void Start()
@@ -56,10 +44,8 @@ public class WeighingScale : MonoBehaviour
             weighSound = Resources.Load<AudioClip>("Audio/weigh_beep");
         }
 
-        // Eğer snapPoint atanmamışsa, bu objenin pozisyonunu kullan
         if (snapPoint == null)
         {
-            // Varsayılan olarak plakanın üstü
             GameObject sp = new GameObject("SnapPoint");
             sp.transform.SetParent(transform, false);
             sp.transform.localPosition = new Vector3(0f, 0.395f, 0f);
@@ -73,7 +59,7 @@ public class WeighingScale : MonoBehaviour
         if (displayText != null)
         {
             displayText.alignment = TextAlignmentOptions.Center;
-            displayText.fontSize = 1.4f; // Sibling scaling is 1:1, so 1.4f fits perfectly without overflow
+            displayText.fontSize = 1.4f;
             displayText.fontStyle = FontStyles.Bold;
             displayText.margin = new Vector4(0f, 0f, 0f, 0f);
             displayText.enableWordWrapping = false;
@@ -84,10 +70,9 @@ public class WeighingScale : MonoBehaviour
 
     void Update()
     {
-        // Pürüzsüz ağırlık geçişi (animasyonlu sayı artışı)
+        // Ağırlık geçiş animasyonu (lerp)
         if (!Mathf.Approximately(displayedWeight, targetWeight))
         {
-            // Daha gerçekçi ve yavaş bir geçiş için hızı 5f yaptık
             displayedWeight = Mathf.Lerp(displayedWeight, targetWeight, Time.deltaTime * 5f);
 
             if (Mathf.Abs(displayedWeight - targetWeight) < 0.1f)
@@ -95,7 +80,7 @@ public class WeighingScale : MonoBehaviour
                 displayedWeight = targetWeight;
             }
 
-            // Sayı artarken dijital sensör dalgalanması simülasyonu
+            // Sayı artarken küçük dalgalanma efekti
             float animatedWeight = displayedWeight;
             if (displayedWeight != targetWeight && targetWeight > 0.01f)
             {
@@ -106,14 +91,14 @@ public class WeighingScale : MonoBehaviour
             UpdateDisplay(animatedWeight, false);
         }
 
-        // Kutu tartıdayken pozisyonunu sabitle (kayma önleme)
+        // Kutu pozisyonunu sabitle
         if (currentBox != null && snapPoint != null)
         {
             currentBox.transform.position = snapPoint.position;
             currentBox.transform.rotation = Quaternion.Euler(0f, currentBox.transform.eulerAngles.y, 0f);
         }
 
-        // Sürpriz kutu tartıdayken ekranı gökkuşağı renginde dalgalandır
+        // Sürpriz kutu için gökkuşağı rengi dalgalanması
         if (currentBox != null && currentBox.isMysteryBox && displayText != null)
         {
             float speed = 0.5f;
@@ -122,9 +107,7 @@ public class WeighingScale : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Kutuyu tartıya yerleştir. PlayerInteraction tarafından çağrılır.
-    /// </summary>
+    // Kutuyu tartıya koy
     public void PlaceBox(BoxController box)
     {
         if (box == null || currentBox != null) return;
@@ -132,7 +115,7 @@ public class WeighingScale : MonoBehaviour
         currentBox = box;
         currentBoxRb = box.GetComponent<Rigidbody>();
 
-        // Fiziği dondur - kutu hareket etmesin, dönmesin
+        // Fiziği durdur
         if (currentBoxRb != null)
         {
             currentBoxRb.isKinematic = true;
@@ -141,34 +124,27 @@ public class WeighingScale : MonoBehaviour
             currentBoxRb.angularVelocity = Vector3.zero;
         }
 
-        // Kutuyu snap noktasına yerleştir
         box.transform.position = snapPoint.position;
         box.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
 
-        // Ağırlığı göster
         targetWeight = box.Weight;
 
-        // Bip sesi
         if (audioSource != null && weighSound != null)
         {
             audioSource.PlayOneShot(weighSound);
         }
     }
 
-    /// <summary>
-    /// Kutuyu tartıdan geri al. PlayerInteraction tarafından çağrılır.
-    /// Kutuyu döner, tartıyı sıfırlar.
-    /// </summary>
+    // Kutuyu tartıdan geri al
     public BoxController RetrieveBox()
     {
         if (currentBox == null) return null;
 
         BoxController box = currentBox;
 
-        // Fiziği geri aç
         if (currentBoxRb != null)
         {
-            currentBoxRb.isKinematic = true; // Oyuncu eline alacak, kinematic kalsın
+            currentBoxRb.isKinematic = true; // Elde tutulacağı için kinematic kalır
             currentBoxRb.useGravity = false;
         }
 
@@ -186,7 +162,7 @@ public class WeighingScale : MonoBehaviour
         if (currentBox != null && currentBox.isMysteryBox)
         {
             displayText.text = "??? kg";
-            displayText.color = Color.magenta; // Sürpriz kutunun mor rengiyle uyumlu parlak magenta
+            displayText.color = Color.magenta;
             return;
         }
 

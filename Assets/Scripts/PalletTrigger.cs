@@ -15,8 +15,6 @@ public class PalletTrigger : MonoBehaviour
         return palletType;
     }
 
-    // Awake metodu paletin orjinal yapısını bozmamak için kaldırıldı.
-
     public void PlaceBox(BoxController box)
     {
         if (box != null && !box.IsEvaluated)
@@ -82,7 +80,7 @@ public class PalletTrigger : MonoBehaviour
 
     private void StackBox(BoxController box)
     {
-        // 1. Kutunun fiziğini kapat
+        // Kutunun fiziğini kapat
         Rigidbody rb = box.GetComponent<Rigidbody>();
         if (rb != null)
         {
@@ -96,38 +94,34 @@ public class PalletTrigger : MonoBehaviour
             c.enabled = false;
         }
 
-        // 2. Etkileşimi kes
+        // Etkileşimi kes
         box.enabled = false;
         box.gameObject.name = "Cardboard Box (Stacked)";
 
-        // Kutu rotasyonunu her zaman düzeltiyoruz
+        // Kutu rotasyonunu hizala
         float boxRotationY = 90f; 
         box.transform.rotation = transform.rotation * Quaternion.Euler(0, boxRotationY, 0);
 
-        // Paletin GÖRSEL (Mesh) veya FİZİKSEL (Collider) boyutlarını dinamik okuyarak
-        // her türlü Scale ve Position değişikliğine anında uyum sağlamasını sağlıyoruz.
+        // Palet sınırlarını dinamik olarak belirle
         float palletWidth = 1.2f; 
         float palletDepth = 1.2f;
         Vector3 palletCenterWorld = transform.position;
-        float palletTopY = transform.position.y + 0.15f; // Varsayılan değer
+        float palletTopY = transform.position.y + 0.15f;
 
         MeshFilter mf = GetComponent<MeshFilter>();
-        if (mf == null) mf = GetComponentInChildren<MeshFilter>(); // Alt objede (child) olma ihtimaline karşı
+        if (mf == null) mf = GetComponentInChildren<MeshFilter>();
 
         BoxCollider pCol = GetComponent<BoxCollider>();
 
         if (mf != null && mf.sharedMesh != null)
         {
-            // Direkt olarak görsel 3D modelin gerçek limitlerini, kendi transform'unu baz alarak okuyoruz
             palletWidth = mf.sharedMesh.bounds.size.x * mf.transform.lossyScale.x;
             palletDepth = mf.sharedMesh.bounds.size.z * mf.transform.lossyScale.z;
             palletCenterWorld = mf.transform.TransformPoint(mf.sharedMesh.bounds.center);
-            // Paletin tam üst yüzeyinin Dünya (World) koordinatlarındaki yüksekliği
             palletTopY = mf.transform.TransformPoint(new Vector3(mf.sharedMesh.bounds.center.x, mf.sharedMesh.bounds.max.y, mf.sharedMesh.bounds.center.z)).y;
         }
         else if (pCol != null)
         {
-            // Eğer mesh yoksa collider referans alınır
             palletWidth = pCol.size.x * transform.lossyScale.x;
             palletDepth = pCol.size.z * transform.lossyScale.z;
             palletCenterWorld = transform.TransformPoint(pCol.center);
@@ -139,9 +133,7 @@ public class PalletTrigger : MonoBehaviour
         BoxCollider boxCol = box.GetComponent<BoxCollider>();
         if (box.Shape == BoxController.BoxShape.Unfolded)
         {
-            // Düz (uzun) kutuları dikey yerleştiriyoruz.
-            // Bu kutularda BoxCollider modelle tam uyuşmadığı (kısa kaldığı) için 
-            // dikey durduklarında paletin altına göçmelerini engellemek adına görsel sınırları (Renderer) kullanıyoruz.
+            // Uzun kutuları dikey yerleştirdiğimiz için renderer sınırlarına göre hesaplama yap
             Renderer[] renderers = box.GetComponentsInChildren<Renderer>();
             bool boundsInitialized = false;
             Bounds visualBounds = new Bounds();
@@ -154,14 +146,12 @@ public class PalletTrigger : MonoBehaviour
 
             if (boundsInitialized)
             {
-                // pivotOffsetToBottom doğrudan en alçak görsel noktaya göre hesaplandığı için
-                // herhangi bir yapay veya sabit güvenlik payına ihtiyaç yoktur. Bu sayede kutu havada kalmaz.
                 pivotOffsetToBottom = box.transform.position.y - visualBounds.min.y;
             }
         }
         else
         {
-            // Normal kutular için katı fiziksel çarpışma kutusundan (BoxCollider) hesaplama
+            // Normal kutular için collider sınırlarını baz al
             if (boxCol != null)
             {
                 float bottomY = box.transform.TransformPoint(boxCol.center - new Vector3(0, boxCol.size.y / 2f, 0)).y;
@@ -174,7 +164,7 @@ public class PalletTrigger : MonoBehaviour
             }
         }
 
-        // Zemin dolarsa temizle
+        // İstif limiti dolunca temizle
         int index = stackedBoxes.Count;
         int maxPerRow = 3;
         int maxPerCol = 3;
@@ -182,7 +172,6 @@ public class PalletTrigger : MonoBehaviour
         
         if (index >= layerCapacity)
         {
-            // Zemin tam dolduğunda eski kutuları yok edip baştan başlıyoruz ki kutular üst üste çıkıp bug oluşturmasın
             ClearStackedBoxes();
             index = 0;
         }
@@ -190,18 +179,15 @@ public class PalletTrigger : MonoBehaviour
         int row = index / maxPerRow;
         int col = index % maxPerRow;
 
-        // Kutunun yönüne göre genişliğini hesapla
+        // Dönüşten ötürü boyutları değiştir (90 derece)
         float boxHalfWidth = 0.2f;
         float boxHalfDepth = 0.2f;
         if (boxCol != null)
         {
-            // Kutu 90 derece döndürüldüğü için X ve Z yer değiştirir (Genişlik ve Derinlik)
             boxHalfWidth = (boxCol.size.z * box.transform.lossyScale.z) / 2f;
             boxHalfDepth = (boxCol.size.x * box.transform.lossyScale.x) / 2f;
         }
 
-        // KUTULARIN ARASINDAKİ MESAFELERİ OTOMATİK HESAPLA (Paletin güncel scale'ine göre)
-        // Eğer ekstra içeri çekmek/dışarı itmek isterseniz padding değerini değiştirebilirsiniz
         float padding = 0.0f; 
         
         float offsetX = 0f;
@@ -216,11 +202,10 @@ public class PalletTrigger : MonoBehaviour
 
         box.transform.SetParent(this.transform, true);
 
-        // Dünya koordinatlarında tam rotasyona göre yerleşim hesaplama
         Vector3 localOffset = new Vector3(offsetX, 0, offsetZ);
         Vector3 worldOffset = transform.rotation * localOffset;
 
-        // Kutu DAİMA paletin en üst yüzeyine yerleştirilir
+        // Paletin üst yüzeyine yerleştir
         box.transform.position = new Vector3(
             palletCenterWorld.x + worldOffset.x,
             palletTopY + pivotOffsetToBottom,
