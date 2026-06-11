@@ -369,7 +369,7 @@ public class GameManager : MonoBehaviour
             }
             if (config.allowWrongColorDefect)
             {
-                rulesText += $"<color=#F44336><b>[RENK KONTROLÜ]</b></color>\n <color=#555555>■</color> Kırmızı boyalı hatalı kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
+                rulesText += $"<color=#4CAF50><b>[RENK KONTROLÜ]</b></color>\n <color=#555555>■</color> Yeşil boyalı hatalı kutular <color=#888888>→</color> <color=#F44336><b>RET</b></color>\n";
             }
             if (config.allowSizeAnomalyDefect)
             {

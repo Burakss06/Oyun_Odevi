@@ -278,7 +278,7 @@ public class NotepadUI : MonoBehaviour
         }
         if (config.allowWrongColorDefect)
         {
-            text += $"• Kırmızı Boyalı ➔ <b><color=#C62828>RET</color></b>\n";
+            text += $"• <color=#2E7D32>Yeşil Boyalı</color> ➔ <b><color=#C62828>RET</color></b>\n";
         }
         if (config.allowSizeAnomalyDefect)
         {
