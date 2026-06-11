@@ -20,6 +20,8 @@ public class PlayerInteraction : MonoBehaviour
     
     private GameObject heldObject;
     private Rigidbody heldRigidbody;
+    private GameObject lastHeldObject;
+    private BoxCollider heldColliderCache;
     private GameObject lastTarget;
     private LineRenderer outlineLine;
     private Collider playerCollider;
@@ -62,13 +64,22 @@ public class PlayerInteraction : MonoBehaviour
             }
         }
 
+        StartCoroutine(LoadAudioClipsAsync());
+    }
+
+    private System.Collections.IEnumerator LoadAudioClipsAsync()
+    {
         if (grabSound == null)
         {
-            grabSound = Resources.Load<AudioClip>("Audio/grab_item");
+            ResourceRequest request = Resources.LoadAsync<AudioClip>("Audio/grab_item");
+            yield return request;
+            grabSound = request.asset as AudioClip;
         }
         if (putSound == null)
         {
-            putSound = Resources.Load<AudioClip>("Audio/put_item");
+            ResourceRequest request = Resources.LoadAsync<AudioClip>("Audio/put_item");
+            yield return request;
+            putSound = request.asset as AudioClip;
         }
     }
 
@@ -155,6 +166,13 @@ public class PlayerInteraction : MonoBehaviour
         // Taşırma mantığı (Pürüzsüz takip ve engelleri algılama)
         if (heldObject != null)
         {
+            if (heldObject != lastHeldObject)
+            {
+                lastHeldObject = heldObject;
+                heldColliderCache = heldObject.GetComponent<BoxCollider>();
+                if (heldColliderCache == null) heldColliderCache = heldObject.GetComponentInChildren<BoxCollider>();
+            }
+
             Vector3 targetPos = holdPoint.position;
             Vector3 startPoint = playerCamera.position;
             Vector3 direction = targetPos - startPoint;
@@ -164,8 +182,7 @@ public class PlayerInteraction : MonoBehaviour
             {
                 // Kutunun boyutuna göre dinamik bir yarıçap belirle
                 float radius = 0.2f;
-                BoxCollider boxCol = heldObject.GetComponent<BoxCollider>();
-                if (boxCol == null) boxCol = heldObject.GetComponentInChildren<BoxCollider>();
+                BoxCollider boxCol = heldColliderCache;
                 if (boxCol != null)
                 {
                     Vector3 worldSize = Vector3.Scale(boxCol.size, heldObject.transform.lossyScale);
@@ -194,6 +211,11 @@ public class PlayerInteraction : MonoBehaviour
 
             heldObject.transform.position = Vector3.Lerp(heldObject.transform.position, targetPos, Time.deltaTime * followSpeed);
             heldObject.transform.rotation = Quaternion.Slerp(heldObject.transform.rotation, holdPoint.rotation, Time.deltaTime * followSpeed);
+        }
+        else
+        {
+            lastHeldObject = null;
+            heldColliderCache = null;
         }
 
         // Eğer bir kutuya bakıyorsak, etrafındaki çerçeveyi her karede güncelle

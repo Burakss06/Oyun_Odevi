@@ -30,50 +30,85 @@ public class BoxController : MonoBehaviour
     [SerializeField] private float weight = 5.0f;
     public float Weight => weight;
 
+    public PalletTrigger.PalletType GetTargetPallet()
+    {
+        if (GameManager.Instance == null || GameManager.Instance.DailyRules == null)
+        {
+            return currentDefect == DefectType.None ? PalletTrigger.PalletType.Kabul : PalletTrigger.PalletType.Ret;
+        }
+
+        if (DayManager.Instance == null)
+        {
+            return PalletTrigger.PalletType.Kabul;
+        }
+
+        DayConfig config = DayManager.Instance.GetCurrentDayConfig();
+        
+        PalletTrigger.PalletType shapeRule = PalletTrigger.PalletType.Kabul;
+        if (GameManager.Instance.DailyRules.TryGetValue(Shape, out var shapePallet))
+        {
+            shapeRule = shapePallet;
+        }
+
+        bool hasRetCondition = false;
+
+        // 1. Şekil kuralı Ret ise
+        if (shapeRule == PalletTrigger.PalletType.Ret)
+        {
+            hasRetCondition = true;
+        }
+
+        // 2. Barkod hatası varsa
+        if (config.allowBarcodeDefect && currentDefect == DefectType.BarcodeAnomaly)
+        {
+            hasRetCondition = true;
+        }
+
+        // 3. Boyut hatası varsa
+        if (config.allowSizeAnomalyDefect && currentDefect == DefectType.SizeAnomaly)
+        {
+            hasRetCondition = true;
+        }
+
+        // 4. Renk kuralı kontrolü
+        if (config.allowWrongColorDefect)
+        {
+            if (currentDefect == DefectType.WrongColor && GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Ret)
+            {
+                // Yeşil yasaklıysa ve yeşilse
+                hasRetCondition = true;
+            }
+            else if (currentDefect != DefectType.WrongColor && GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Kabul)
+            {
+                // Sadece yeşil kabul ediliyorsa ve normal renkse
+                hasRetCondition = true;
+            }
+        }
+
+        // 5. Ağırlık kuralı kontrolü
+        if (config.allowWeightDefect)
+        {
+            if (weight >= 10.0f && GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Ret)
+            {
+                // Ağır yasaklıysa ve ağırsa
+                hasRetCondition = true;
+            }
+            else if (weight < 10.0f && GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Kabul)
+            {
+                // Sadece ağır kabul ediliyorsa ve hafifse
+                hasRetCondition = true;
+            }
+        }
+
+        return hasRetCondition ? PalletTrigger.PalletType.Ret : PalletTrigger.PalletType.Kabul;
+    }
+
     public bool IsDefective
     {
         get
         {
-            if (GameManager.Instance == null || GameManager.Instance.DailyRules == null)
-            {
-                return currentDefect != DefectType.None;
-            }
-
-            // Sürpriz kutular banttan düşerse ceza yazılmasın
             if (isMysteryBox) return false;
-
-            PalletTrigger.PalletType targetPallet = PalletTrigger.PalletType.Kabul;
-
-            if (DayManager.Instance != null)
-            {
-                DayConfig config = DayManager.Instance.GetCurrentDayConfig();
-                
-                if (config.allowBarcodeDefect && currentDefect == DefectType.BarcodeAnomaly)
-                {
-                    targetPallet = PalletTrigger.PalletType.Ret;
-                }
-                else if (config.allowSizeAnomalyDefect && currentDefect == DefectType.SizeAnomaly)
-                {
-                    targetPallet = PalletTrigger.PalletType.Ret;
-                }
-                else if (config.allowWrongColorDefect && currentDefect == DefectType.WrongColor)
-                {
-                    targetPallet = GameManager.Instance.ColorDefectRule;
-                }
-                else if (config.allowWeightDefect && weight >= 10.0f)
-                {
-                    targetPallet = GameManager.Instance.WeightDefectRule;
-                }
-                else
-                {
-                    if (GameManager.Instance.DailyRules.TryGetValue(Shape, out var shapePallet))
-                    {
-                        targetPallet = shapePallet;
-                    }
-                }
-            }
-
-            return targetPallet == PalletTrigger.PalletType.Ret;
+            return GetTargetPallet() == PalletTrigger.PalletType.Ret;
         }
     }
 
@@ -104,32 +139,21 @@ public class BoxController : MonoBehaviour
         }
         else if (targetPallet == PalletTrigger.PalletType.Kabul)
         {
+            // Tüm özellikleri Kabul olacak şekilde ayarla
             currentDefect = DefectType.None;
 
             if (config.allowWrongColorDefect)
             {
-                if (GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Kabul)
-                {
-                    // Yeşil kabul ediliyorsa %40 ihtimalle yeşil yap
-                    currentDefect = (Random.value < 0.4f) ? DefectType.WrongColor : DefectType.None;
-                }
-                else
-                {
-                    currentDefect = DefectType.None;
-                }
+                currentDefect = (GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Kabul) 
+                    ? DefectType.WrongColor 
+                    : DefectType.None;
             }
 
             if (config.allowWeightDefect)
             {
-                if (GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Kabul)
-                {
-                    // Ağır kabul ediliyorsa %40 ihtimalle ağır yap
-                    weight = (Random.value < 0.4f) ? Random.Range(10.0f, 15.0f) : Random.Range(3.0f, 9.9f);
-                }
-                else
-                {
-                    weight = Random.Range(3.0f, 9.9f);
-                }
+                weight = (GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Kabul)
+                    ? Random.Range(10.0f, 15.0f)
+                    : Random.Range(3.0f, 9.9f);
             }
             else
             {
@@ -138,75 +162,114 @@ public class BoxController : MonoBehaviour
         }
         else
         {
-            bool isRetByShape = false;
+            // RET KUTUSU ÜRETİMİ
+            // Önce kutunun tüm özelliklerini Kabul (kusursuz) olarak başlat
+            currentDefect = DefectType.None;
+            weight = Random.Range(3.0f, 9.9f);
+
+            if (config.allowWrongColorDefect && GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Kabul)
+            {
+                currentDefect = DefectType.WrongColor; // Kabul olması için yeşil olması gerek
+            }
+            if (config.allowWeightDefect && GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Kabul)
+            {
+                weight = Random.Range(10.0f, 15.0f); // Kabul olması için ağır olması gerek
+            }
+
+            // Bu kutuyu bozmak (Ret yapmak) için kullanabileceğimiz yöntemlerin listesini çıkar
+            List<System.Action> violateActions = new List<System.Action>();
+
+            // 1. Şekil kuralı ihlali (Eğer spawner zaten Ret olan bir şekil seçmişse, bu kutu zaten Ret'tir)
+            bool shapeIsRet = false;
             if (GameManager.Instance != null && GameManager.Instance.DailyRules != null &&
                 GameManager.Instance.DailyRules.TryGetValue(Shape, out var shapePallet))
             {
-                isRetByShape = (shapePallet == PalletTrigger.PalletType.Ret);
+                shapeIsRet = (shapePallet == PalletTrigger.PalletType.Ret);
             }
             else
             {
-                isRetByShape = (Shape == BoxShape.Opened);
+                shapeIsRet = (Shape == BoxShape.Opened);
             }
 
-            if (isRetByShape)
+            if (shapeIsRet)
             {
-                // Şekli zaten ret, ekstra hatalar da alabilir
-                currentDefect = DefectType.None;
-                weight = Random.Range(3.0f, 9.9f);
-
-                if (Random.value < 0.3f)
-                {
-                    List<DefectType> allowedRetDefects = new List<DefectType>();
-                    if (config.allowBarcodeDefect) allowedRetDefects.Add(DefectType.BarcodeAnomaly);
-                    if (config.allowSizeAnomalyDefect) allowedRetDefects.Add(DefectType.SizeAnomaly);
-                    if (config.allowWrongColorDefect && GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Ret)
-                    {
-                        allowedRetDefects.Add(DefectType.WrongColor);
-                    }
-
-                    if (allowedRetDefects.Count > 0)
-                    {
-                        currentDefect = allowedRetDefects[Random.Range(0, allowedRetDefects.Count)];
-                    }
-                }
-
-                if (config.allowWeightDefect && GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Ret && Random.value < 0.3f)
-                {
-                    weight = Random.Range(10.0f, 15.0f);
-                }
+                // Şekil zaten Ret, hiçbir şeyi bozmasak da olur
+                violateActions.Add(() => { });
             }
-            else
+
+            // 2. Barkod kuralı ihlali
+            if (config.allowBarcodeDefect)
             {
-                // Şekil kabul edilse de bir kusurla ret yapılması gerekiyor
-                List<DefectType> possibleRetDefects = new List<DefectType>();
-                if (config.allowBarcodeDefect) possibleRetDefects.Add(DefectType.BarcodeAnomaly);
-                if (config.allowSizeAnomalyDefect) possibleRetDefects.Add(DefectType.SizeAnomaly);
-                if (config.allowWrongColorDefect && GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Ret)
-                {
-                    possibleRetDefects.Add(DefectType.WrongColor);
-                }
-
-                bool gaveDefect = false;
-                if (possibleRetDefects.Count > 0 && Random.value < 0.7f)
-                {
-                    currentDefect = possibleRetDefects[Random.Range(0, possibleRetDefects.Count)];
-                    gaveDefect = true;
-                    weight = Random.Range(3.0f, 9.9f);
-                }
-
-                if (!gaveDefect && config.allowWeightDefect && GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Ret)
-                {
-                    weight = Random.Range(10.0f, 15.0f);
-                    currentDefect = DefectType.None;
-                    gaveDefect = true;
-                }
-                
-                if (!gaveDefect)
-                {
+                violateActions.Add(() => {
                     currentDefect = DefectType.BarcodeAnomaly;
-                    weight = Random.Range(3.0f, 9.9f);
+                });
+            }
+
+            // 3. Boyut kuralı ihlali
+            if (config.allowSizeAnomalyDefect)
+            {
+                violateActions.Add(() => {
+                    currentDefect = DefectType.SizeAnomaly;
+                });
+            }
+
+            // 4. Renk kuralı ihlali
+            if (config.allowWrongColorDefect)
+            {
+                if (GameManager.Instance.ColorDefectRule == PalletTrigger.PalletType.Ret)
+                {
+                    // Yeşil yasaksa, yeşil yaparak boz
+                    violateActions.Add(() => {
+                        currentDefect = DefectType.WrongColor;
+                    });
                 }
+                else
+                {
+                    // Sadece yeşil kabul ediliyorsa, normal renk (yeşil olmayan) yaparak boz
+                    violateActions.Add(() => {
+                        currentDefect = DefectType.None;
+                    });
+                }
+            }
+
+            // 5. Ağırlık kuralı ihlali
+            if (config.allowWeightDefect)
+            {
+                if (GameManager.Instance.WeightDefectRule == PalletTrigger.PalletType.Ret)
+                {
+                    // Ağır yasaksa, ağır yaparak boz
+                    violateActions.Add(() => {
+                        weight = Random.Range(10.0f, 15.0f);
+                    });
+                }
+                else
+                {
+                    // Sadece ağır kabul ediliyorsa, hafif yaparak boz
+                    violateActions.Add(() => {
+                        weight = Random.Range(3.0f, 9.9f);
+                    });
+                }
+            }
+
+            // En az bir kuralı ihlal et
+            if (violateActions.Count > 0)
+            {
+                int firstIndex = Random.Range(0, violateActions.Count);
+                violateActions[firstIndex]();
+
+                // %25 şansla ikinci bir kuralı da ihlal edebiliriz (çoklu hata)
+                if (violateActions.Count > 1 && Random.value < 0.25f)
+                {
+                    int secondIndex;
+                    do { secondIndex = Random.Range(0, violateActions.Count); }
+                    while (secondIndex == firstIndex);
+                    violateActions[secondIndex]();
+                }
+            }
+            else
+            {
+                // Herhangi bir kural aktif değilse (örn. Day 1, ama Day 1 spawner zaten Opened'ı Ret olarak seçer)
+                currentDefect = DefectType.BarcodeAnomaly;
             }
         }
 
@@ -235,6 +298,7 @@ public class BoxController : MonoBehaviour
 
         ApplyVisualDefect();
     }
+
 
     private void CreateBarcodeUI()
     {

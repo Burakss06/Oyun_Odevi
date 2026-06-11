@@ -34,38 +34,7 @@ public class PalletTrigger : MonoBehaviour
         }
         else
         {
-            PalletType targetPallet = PalletType.Kabul;
-
-            if (DayManager.Instance != null)
-            {
-                DayConfig config = DayManager.Instance.GetCurrentDayConfig();
-                
-                if (box.CurrentDefect == BoxController.DefectType.BarcodeAnomaly && config.allowBarcodeDefect)
-                {
-                    targetPallet = PalletType.Ret;
-                }
-                else if (box.CurrentDefect == BoxController.DefectType.SizeAnomaly && config.allowSizeAnomalyDefect)
-                {
-                    targetPallet = PalletType.Ret;
-                }
-                else if (box.CurrentDefect == BoxController.DefectType.WrongColor && config.allowWrongColorDefect)
-                {
-                    targetPallet = GameManager.Instance.ColorDefectRule;
-                }
-                else if (config.allowWeightDefect && box.Weight >= 10.0f)
-                {
-                    targetPallet = GameManager.Instance.WeightDefectRule;
-                }
-                else
-                {
-                    if (GameManager.Instance != null && GameManager.Instance.DailyRules != null && 
-                        GameManager.Instance.DailyRules.TryGetValue(box.Shape, out var shapePallet))
-                    {
-                        targetPallet = shapePallet;
-                    }
-                }
-            }
-
+            PalletType targetPallet = box.GetTargetPallet();
             isCorrect = (palletType == targetPallet);
         }
 

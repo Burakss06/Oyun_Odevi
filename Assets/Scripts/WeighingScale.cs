@@ -166,7 +166,7 @@ public class WeighingScale : MonoBehaviour
             return;
         }
 
-        if (isIdle && weight <= 0.01f)
+        if (isIdle || weight <= 0.01f)
         {
             displayText.text = "0.0 kg";
             displayText.color = Color.white;

@@ -397,4 +397,16 @@ public class PowerUpManager : MonoBehaviour
         PlayerController.InvertControls = false;
         Debug.Log("[PowerUp] Ters Kontroller bitti.");
     }
+
+    public void DeactivateAllPowerUps()
+    {
+        foreach (var pu in pool)
+        {
+            if (pu != null && pu.gameObject.activeSelf)
+            {
+                pu.gameObject.SetActive(false);
+            }
+        }
+        currentActiveCount = 0;
+    }
 }

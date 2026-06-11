@@ -7,6 +7,7 @@ public class PauseMenuUI : MonoBehaviour
 {
     [HideInInspector] public Button resumeButton;
     [HideInInspector] public Button muteButton;
+    [HideInInspector] public Button howToPlayButton;
     [HideInInspector] public Button quitButton;
     [HideInInspector] public Slider sensitivitySlider;
     [HideInInspector] public TextMeshProUGUI sensitivityValueText;
@@ -49,7 +50,7 @@ public class PauseMenuUI : MonoBehaviour
         cardRect.anchorMin = new Vector2(0.5f, 0.5f);
         cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(550f, 630f);
+        cardRect.sizeDelta = new Vector2(550f, 700f);
         cardRect.anchoredPosition = new Vector2(0f, 20f);
 
         Image cardImg = cardObj.AddComponent<Image>();
@@ -135,7 +136,7 @@ public class PauseMenuUI : MonoBehaviour
 
         GameObject valueObj = MakeObj("ValueText", sliderRow.transform);
         sensitivityValueText = valueObj.AddComponent<TextMeshProUGUI>();
-        sensitivityValueText.text = "0.9";
+        sensitivityValueText.text = "1.0";
         sensitivityValueText.fontSize = 24f;
         sensitivityValueText.fontStyle = FontStyles.Bold;
         sensitivityValueText.color = new Color(1f, 0.67f, 0f, 1f);
@@ -157,8 +158,9 @@ public class PauseMenuUI : MonoBehaviour
 
         // Butonlar
         resumeButton = CreateStyledButton(contentRoot.transform, "ResumeBtn", "Devam Et", new Color(0.16f, 0.62f, 0.25f, 1f));
-        muteButton = CreateStyledButton(contentRoot.transform, "MuteBtn", "Müziği Kapa", new Color(0.22f, 0.24f, 0.28f, 1f));
+        muteButton = CreateStyledButton(contentRoot.transform, "MuteBtn", "Müziği Kapat", new Color(0.22f, 0.24f, 0.28f, 1f));
         muteButtonText = muteButton.GetComponentInChildren<TextMeshProUGUI>();
+        howToPlayButton = CreateStyledButton(contentRoot.transform, "HowToPlayBtn", "Nasıl Oynanır", new Color(0.11f, 0.5f, 0.9f, 1f));
         quitButton = CreateStyledButton(contentRoot.transform, "QuitBtn", "Oyunu Kapat", new Color(0.58f, 0.15f, 0.15f, 1f));
     }
 
@@ -245,7 +247,7 @@ public class PauseMenuUI : MonoBehaviour
         slider.direction = Slider.Direction.LeftToRight;
         slider.minValue = 0.1f;
         slider.maxValue = 5f;
-        slider.value = 0.9f;
+        slider.value = 1.0f;
 
         return sliderGO;
     }
@@ -300,7 +302,7 @@ public class PauseMenuUI : MonoBehaviour
     {
         if (muteButtonText != null)
         {
-            muteButtonText.text = isMuted ? "Müzik Aç" : "Müziği Kapa";
+            muteButtonText.text = isMuted ? "Müzik Aç" : "Müziği Kapat";
         }
     }
 }

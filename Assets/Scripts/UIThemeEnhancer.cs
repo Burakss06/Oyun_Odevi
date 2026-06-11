@@ -1,58 +1,81 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 using TMPro;
 
 public class UIThemeEnhancer : MonoBehaviour
 {
     private void Start()
     {
-        // 1 saniye sonra çalıştır ki diğer scriptler (örn: PauseMenuUI) kurulumlarını tamamlasın
-        Invoke("EnhanceUI", 0.5f);
+        // Start as a coroutine to spread UI styling work across multiple frames
+        StartCoroutine(EnhanceUICoroutine());
     }
 
-    private void EnhanceUI()
+    private IEnumerator EnhanceUICoroutine()
     {
-        Debug.Log("[UIThemeEnhancer] UI Teması İyileştiriliyor...");
+        // Wait 0.5s to let other scripts complete their initialization
+        yield return new WaitForSeconds(0.5f);
 
-        // Tüm Canvas'ları bul ve UI elemanlarına hover ve tasarım ekle
+        Debug.Log("[UIThemeEnhancer] UI Teması İyileştiriliyor (Coroutine)...");
+
         Canvas[] canvases = FindObjectsOfType<Canvas>();
         foreach (Canvas canvas in canvases)
         {
-            // Hover efektlerini butonlara ekle
+            if (canvas == null) continue;
+
+            // Add hover effects to buttons, yielding every few buttons to prevent lag
             Button[] buttons = canvas.GetComponentsInChildren<Button>(true);
+            int buttonCount = 0;
             foreach (Button btn in buttons)
             {
+                if (btn == null) continue;
                 if (btn.GetComponent<UIAnimator.ButtonHoverEffect>() == null)
                 {
                     btn.gameObject.AddComponent<UIAnimator.ButtonHoverEffect>();
                 }
+                
+                buttonCount++;
+                if (buttonCount % 3 == 0) // Process 3 buttons per frame
+                {
+                    yield return null;
+                }
             }
 
-            // Eğer bu bir ana menü veya bilgi paneli ise, arkasına koyu bir overlay (Dim) ekleyelim
-            // Panellerin adlarını kontrol et
             Transform hudPanel = canvas.transform.Find("HUDPanel");
             Transform briefingPanel = canvas.transform.Find("BriefingPanel");
             Transform reportPanel = canvas.transform.Find("ReportPanel");
             Transform gameOverPanel = canvas.transform.Find("GameOverPanel");
             Transform pausePanel = canvas.transform.Find("PausePanel");
 
-            if (briefingPanel != null) SetupPanelTheme(briefingPanel);
-            if (reportPanel != null) SetupPanelTheme(reportPanel);
-            if (gameOverPanel != null) SetupPanelTheme(gameOverPanel);
-            if (pausePanel != null) SetupPanelTheme(pausePanel);
+            if (briefingPanel != null)
+            {
+                yield return StartCoroutine(SetupPanelThemeCoroutine(briefingPanel));
+            }
+            if (reportPanel != null)
+            {
+                yield return StartCoroutine(SetupPanelThemeCoroutine(reportPanel));
+            }
+            if (gameOverPanel != null)
+            {
+                yield return StartCoroutine(SetupPanelThemeCoroutine(gameOverPanel));
+            }
+            if (pausePanel != null)
+            {
+                yield return StartCoroutine(SetupPanelThemeCoroutine(pausePanel));
+            }
 
-            // HUD Tasarım iyileştirmesi
             if (hudPanel != null)
             {
-                EnhanceHUD(hudPanel);
+                yield return StartCoroutine(EnhanceHUDCoroutine(hudPanel));
             }
         }
     }
 
-    private void SetupPanelTheme(Transform panelTransform)
+    private IEnumerator SetupPanelThemeCoroutine(Transform panelTransform)
     {
-        // Panelin arkasına karanlık overlay ekle
-        // Eğer panelin kendisi zaten tam ekran bir Image ise rengini değiştir, yoksa ekle
+        if (panelTransform == null) yield break;
+
+        // Add dark overlay background to panels
         Image panelImage = panelTransform.GetComponent<Image>();
         if (panelImage == null)
         {
@@ -61,42 +84,54 @@ public class UIThemeEnhancer : MonoBehaviour
 
         if (panelImage != null)
         {
-            // Şık, modern koyu gri / antrasit bir arkaplan (Endüstriyel & Temiz Görünüm)
             panelImage.color = new Color(0.12f, 0.13f, 0.15f, 0.98f);
         }
 
-        // Panel içindeki metinlerin tipografisini geliştir
+        // Improve typography of panel texts
         TextMeshProUGUI[] texts = panelTransform.GetComponentsInChildren<TextMeshProUGUI>(true);
+        int textCount = 0;
         foreach (TextMeshProUGUI txt in texts)
         {
-            // Başlıklara hafif gölge ekle ve rengini sarımsı/turuncu tonlarında vurgula
+            if (txt == null) continue;
+
             if (txt.gameObject.name.ToLower().Contains("title"))
             {
                 txt.fontStyle = FontStyles.Bold;
-                txt.color = new Color(1.0f, 0.75f, 0.1f); // Modern uyarı sarısı
+                txt.color = new Color(1.0f, 0.75f, 0.1f); // Modern warning yellow
                 
-                // Başlıkların arkasına siyah, belirgin bir gölge ekle
                 txt.outlineWidth = 0.15f;
                 txt.outlineColor = new Color32(0, 0, 0, 255);
+            }
+
+            textCount++;
+            if (textCount % 5 == 0) // Process 5 texts per frame
+            {
+                yield return null;
             }
         }
     }
 
-    private void EnhanceHUD(Transform hudTransform)
+    private IEnumerator EnhanceHUDCoroutine(Transform hudTransform)
     {
-        // HUD elemanlarının okunabilirliğini artırmak için arkalarına hafif siyah barlar ekle
+        if (hudTransform == null) yield break;
+
         TextMeshProUGUI[] texts = hudTransform.GetComponentsInChildren<TextMeshProUGUI>(true);
+        int textCount = 0;
         foreach (TextMeshProUGUI txt in texts)
         {
+            if (txt == null) continue;
+
             if (txt.gameObject.name.Contains("Text"))
             {
-                // Shadow efekti ver
-                // Eğer yoksa outline/shadow material kullanmak zor olabilir, o yüzden en basiti arkasına karanlık panel koymak veya gölge açmak
                 txt.fontStyle = FontStyles.Bold;
-                
-                // Unity TextMeshPro Outline
                 txt.outlineWidth = 0.2f;
                 txt.outlineColor = new Color32(0, 0, 0, 255);
+            }
+
+            textCount++;
+            if (textCount % 5 == 0) // Process 5 texts per frame
+            {
+                yield return null;
             }
         }
     }

@@ -12,7 +12,7 @@ public class PlayerController : MonoBehaviour
 
     [Header("Look Settings")]
     [SerializeField] private Transform playerCamera;
-    [SerializeField] private float mouseSensitivity = 2.0f;
+    [SerializeField] private float mouseSensitivity = 1.0f;
     [SerializeField] private float lookUpLimit = -90f;
     [SerializeField] private float lookDownLimit = 90f;
 
