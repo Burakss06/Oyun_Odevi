@@ -1,5 +1,10 @@
+// This script is now moved to the Editor folder to prevent build errors.
+// It provides a tool to recreate forklift signs in the editor.
+
 using UnityEngine;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 
 public class ForkliftSignageManager : MonoBehaviour
 {
@@ -9,6 +14,7 @@ public class ForkliftSignageManager : MonoBehaviour
     public float fontSize = 0.11f;
     public Vector3 localOffset = new Vector3(0, 3.2f, 0.5f);
 
+    #if UNITY_EDITOR
     [ContextMenu("Recreate Signs")]
     public void RecreateSigns()
     {
@@ -35,7 +41,7 @@ public class ForkliftSignageManager : MonoBehaviour
 
         // 4. Create KABUL
         CreateSign("KABUL_Sign", "✔ KABUL", Color.green, forklift1.transform);
-        
+
         // 5. Create RET
         CreateSign("RET_Sign", "✘ RET", Color.red, forklift2.transform);
 
@@ -69,4 +75,5 @@ public class ForkliftSignageManager : MonoBehaviour
             renderer.sharedMaterial = signMat;
         }
     }
+#endif
 }
